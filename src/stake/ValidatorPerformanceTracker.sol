@@ -57,7 +57,7 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
         uint256 epoch = IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch();
 
         uint256 validatorCount = currentValidators.length;
-        
+
         // Define sentinel value for "no proposer" case
         uint64 NO_PROPOSER = type(uint64).max;
 

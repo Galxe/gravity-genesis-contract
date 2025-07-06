@@ -17,7 +17,6 @@ import "@src/interfaces/ITimestamp.sol";
  * Uses epoch-based state transitions where pendingInactive becomes claimable after epoch
  */
 contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradeable, System, IStakeCredit {
-
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     // State model - Layer 1: State Pools
@@ -199,27 +198,27 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     ) external onlyDelegationOrValidatorManager nonReentrant returns (uint256 amount) {
         // In Aptos model, users can claim their inactive funds after epoch transition
         uint256 userPooledG = getPooledGByDelegator(delegator);
-        
+
         // Calculate claimable amount from inactive pool
         if (userPooledG == 0) revert StakeCredit__NoClaimableRequest();
-        
+
         // Check total pooled to get proportional share
         uint256 totalPooled = getTotalPooledG();
         if (totalPooled == 0) revert ZeroTotalPooledTokens();
-        
+
         // Calculate user's share of inactive pool
         amount = (inactive * userPooledG) / totalPooled;
-        
+
         if (amount == 0) revert StakeCredit__NoClaimableRequest();
         if (inactive < amount) revert InsufficientBalance();
-        
+
         // Update state
         inactive -= amount;
-        
+
         // Burn proportional shares
         uint256 sharesToBurn = (balanceOf(delegator) * amount) / userPooledG;
         _burn(delegator, sharesToBurn);
-        
+
         // Transfer funds
         (bool success,) = delegator.call{ value: amount }("");
         if (!success) revert TransferFailed();
@@ -275,11 +274,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // Calculate proportional amount based on user's share of pendingInactive
         uint256 userPooledG = getPooledGByDelegator(delegator);
         if (userPooledG == 0) revert NoWithdrawableAmount();
-        
+
         // Calculate user's share of pendingInactive
         uint256 totalPooled = getTotalPooledG();
         uint256 userPendingInactive = (pendingInactive * userPooledG) / totalPooled;
-        
+
         // Calculate amount to reactivate based on shares
         gAmount = getPooledGByShares(shares);
         if (gAmount > userPendingInactive) {
@@ -293,7 +292,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // Shares remain the same (no mint needed, just state change)
 
         emit StakeReactivated(delegator, shares, gAmount);
-        
+
         return gAmount;
     }
 
@@ -423,13 +422,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         address delegator
     ) external view returns (uint256) {
         if (inactive == 0) return 0;
-        
+
         uint256 userPooledG = getPooledGByDelegator(delegator);
         if (userPooledG == 0) return 0;
-        
+
         uint256 totalPooled = getTotalPooledG();
         if (totalPooled == 0) return 0;
-        
+
         // User's proportional share of inactive pool
         return (inactive * userPooledG) / totalPooled;
     }
@@ -440,7 +439,6 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     function _isCurrentEpochValidator() internal view returns (bool) {
         return IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(validator);
     }
-
 
     // ERC20 overrides (disable transfers)
 
@@ -518,13 +516,13 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         address delegator
     ) external view returns (uint256) {
         if (pendingInactive == 0) return 0;
-        
+
         uint256 userPooledG = getPooledGByDelegator(delegator);
         if (userPooledG == 0) return 0;
-        
+
         uint256 totalPooled = getTotalPooledG();
         if (totalPooled == 0) return 0;
-        
+
         // User's proportional share of pendingInactive pool
         return (pendingInactive * userPooledG) / totalPooled;
     }
@@ -545,17 +543,17 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
         // In Aptos model, check if user has any pendingInactive stake
         uint256 userPooledG = getPooledGByDelegator(msg.sender);
         if (userPooledG == 0) return (false, 0);
-        
+
         uint256 totalPooled = getTotalPooledG();
         if (totalPooled == 0) return (false, 0);
-        
+
         // Check if user has share of pendingInactive
         uint256 userPendingInactive = (pendingInactive * userPooledG) / totalPooled;
         hasRequest = userPendingInactive > 0;
-        
+
         // In Aptos model, requestedAt is not applicable (epoch-based)
         requestedAt = 0;
-        
+
         return (hasRequest, requestedAt);
     }
 }

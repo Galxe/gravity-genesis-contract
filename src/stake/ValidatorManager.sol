@@ -1201,12 +1201,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function getAllActiveValidatorInfos() public view returns (ValidatorInfo[] memory) {
         uint256 activeCount = activeValidators.length();
         ValidatorInfo[] memory infos = new ValidatorInfo[](activeCount);
-        
+
         for (uint256 i = 0; i < activeCount; i++) {
             address validator = activeValidators.at(i);
             infos[i] = validatorInfos[validator];
         }
-        
+
         return infos;
     }
 }
