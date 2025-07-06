@@ -19,40 +19,34 @@ lint-fix: ## Fix automatically fixable Solhint issues
 	@npx solhint $(SOL_FILES) --fix || yarn solhint $(SOL_FILES) --fix
 
 slither: ## Run Slither security analysis on all contracts
-	@echo "Ensuring Slither script is executable..."
-	@chmod +x script/generate_slither_report.sh
+	@echo "Ensuring security analysis script is executable..."
+	@chmod +x script/security_analysis.sh
 	@echo "Running Slither security analysis..."
-	@./script/generate_slither_report.sh
+	@./script/security_analysis.sh slither
 
 mythril: ## Run Mythril security analysis on all contracts
-	@echo "Ensuring Mythril script is executable..."
-	@chmod +x script/generate_mythril_report.sh
+	@echo "Ensuring security analysis script is executable..."
+	@chmod +x script/security_analysis.sh
 	@echo "Running Mythril security analysis..."
-	@./script/generate_mythril_report.sh
+	@./script/security_analysis.sh mythril
 
 4naly3er: ## Generate smart contract audit report with 4naly3er
-	@echo "Ensuring script is executable..."
-	@chmod +x script/generate_4naly3er_report.sh
+	@echo "Ensuring security analysis script is executable..."
+	@chmod +x script/security_analysis.sh
 	@echo "Generating audit report..."
-	@./script/generate_4naly3er_report.sh
+	@./script/security_analysis.sh 4naly3er
 
 aderyn: ## Run Aderyn static analysis on all contracts
-	@echo "Ensuring Aderyn script is executable..."
-	@chmod +x script/generate_aderyn_report.sh
+	@echo "Ensuring security analysis script is executable..."
+	@chmod +x script/security_analysis.sh
 	@echo "Running Aderyn static analysis..."
-	@./script/generate_aderyn_report.sh
+	@./script/security_analysis.sh aderyn
 
 audit: ## Run all security analysis tools (Slither, Mythril, 4naly3er, Aderyn)
+	@echo "Ensuring security analysis script is executable..."
+	@chmod +x script/security_analysis.sh
 	@echo "Running comprehensive security audit..."
-	@make slither
-	@echo ""
-	@make mythril
-	@echo ""
-	@make 4naly3er
-	@echo ""
-	@make aderyn
-	@echo ""
-	@echo "Security audit complete! Check the audit/ directory for reports."
+	@./script/security_analysis.sh all
 
 cleanup-demo: ## Clean up demo files from project directories
 	@echo "Ensuring cleanup script is executable..."
