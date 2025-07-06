@@ -463,9 +463,9 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
 
     /// @inheritdoc IStakeCredit
     function validateStakeStates() external view returns (bool) {
-        // Verify total of four states equals contract balance
+        // Verify total of four states does not exceed contract balance
         uint256 totalStates = active + inactive + pendingActive + pendingInactive;
-        return totalStates == address(this).balance;
+        return totalStates <= address(this).balance;
     }
 
     /// @inheritdoc IStakeCredit

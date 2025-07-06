@@ -53,7 +53,7 @@ contract DelegationTest is Test, TestConstants {
 
         // Initialize mocks that have initialize function
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).initialize(
-            new address[](0), new address[](0), new address payable[](0), new uint64[](0), new bytes[](0)
+            new address[](0), new address[](0), new address payable[](0), new uint256[](0), new bytes[](0)
         );
         StakeConfigMock(STAKE_CONFIG_ADDR).initialize();
         // GovTokenMock doesn't have initialize method

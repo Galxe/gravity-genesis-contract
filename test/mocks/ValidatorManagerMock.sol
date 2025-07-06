@@ -16,7 +16,7 @@ contract ValidatorManagerMock {
         address[] calldata validatorAddresses,
         address[] calldata consensusAddresses,
         address payable[] calldata feeAddresses,
-        uint64[] calldata votingPowers,
+        uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external {
         initialized = true;
@@ -135,5 +135,14 @@ contract ValidatorManagerMock {
         validatorStatusMap[validator] = IValidatorManager.ValidatorStatus.INACTIVE;
         validatorStakeMap[validator] = 0;
         isCurrentEpochValidatorMap[validator] = false;
+    }
+
+    function getAllActiveValidatorInfos() external pure returns (IValidatorManager.ValidatorInfo[] memory) {
+        // Return empty array for mock
+        return new IValidatorManager.ValidatorInfo[](0);
+    }
+
+    function onNewEpoch() external {
+        // Mock implementation - do nothing
     }
 }

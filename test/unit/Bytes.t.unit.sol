@@ -414,8 +414,6 @@ contract BytesTest is Test {
     }
 
     function test_memoryLayoutIndependence_provesOurFixIsCorrect() public pure {
-        // Arrange - This test proves our fix handles memory layout correctly
-        // compared to BSC's raw implementation
         address testAddr = 0xabCDEF1234567890ABcDEF1234567890aBCDeF12;
 
         // Create bytes data the way Solidity does (with length prefix)

@@ -51,7 +51,7 @@ contract GovTokenTest is Test, TestConstants {
 
     function test_initialize_shouldSetCorrectValues() public view {
         // Assert
-        assertEq(govToken.name(), "BSC Governance Token");
+        assertEq(govToken.name(), "Gravity Governance Token");
         assertEq(govToken.symbol(), "govG");
         assertEq(govToken.decimals(), 18);
         assertEq(govToken.totalSupply(), 0);

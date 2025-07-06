@@ -8,8 +8,8 @@ import "@openzeppelin/contracts/governance/utils/IVotes.sol";
 
 /**
  * @title IGovToken
- * @dev Interface for BSC Governance Token (govBNB)
- * @notice This interface defines the governance token functionality for BSC staking
+ * @dev Interface for G Governance Token (govG)
+ * @notice This interface defines the governance token functionality for G staking
  */
 interface IGovToken {
     /*----------------- errors -----------------*/
@@ -39,7 +39,7 @@ interface IGovToken {
     function initialize() external;
 
     /**
-     * @dev Sync the account's govBNB amount to the actual BNB value of the StakingCredit
+     * @dev Sync the account's govG amount to the actual BNB value of the StakingCredit
      * @param stakeCredit The stakeCredit Token contract address
      * @param account The account to sync gov tokens to
      * @notice Can only be called by StakeHub
@@ -47,7 +47,7 @@ interface IGovToken {
     function sync(address stakeCredit, address account) external;
 
     /**
-     * @dev Batch sync accounts' govBNB amounts to actual BNB values of StakingCredits
+     * @dev Batch sync accounts' govG amounts to actual BNB values of StakingCredits
      * @param stakeCredits Array of stakeCredit Token contract addresses
      * @param account The account to sync gov tokens to
      * @notice Can only be called by StakeHub
@@ -55,7 +55,7 @@ interface IGovToken {
     function syncBatch(address[] calldata stakeCredits, address account) external;
 
     /**
-     * @dev Delegate govBNB votes from delegator to delegatee
+     * @dev Delegate govG votes from delegator to delegatee
      * @param delegator The address delegating votes
      * @param delegatee The address receiving delegated votes
      * @notice Can only be called by StakeHub
