@@ -24,25 +24,13 @@ slither: ## Run Slither security analysis on all contracts
 	@echo "Running Slither security analysis..."
 	@./script/security_analysis.sh slither
 
-mythril: ## Run Mythril security analysis on all contracts
-	@echo "Ensuring security analysis script is executable..."
-	@chmod +x script/security_analysis.sh
-	@echo "Running Mythril security analysis..."
-	@./script/security_analysis.sh mythril
-
-4naly3er: ## Generate smart contract audit report with 4naly3er
-	@echo "Ensuring security analysis script is executable..."
-	@chmod +x script/security_analysis.sh
-	@echo "Generating audit report..."
-	@./script/security_analysis.sh 4naly3er
-
 aderyn: ## Run Aderyn static analysis on all contracts
 	@echo "Ensuring security analysis script is executable..."
 	@chmod +x script/security_analysis.sh
 	@echo "Running Aderyn static analysis..."
 	@./script/security_analysis.sh aderyn
 
-audit: ## Run all security analysis tools (Slither, Mythril, 4naly3er, Aderyn)
+audit: ## Run all security analysis tools (Slither and Aderyn)
 	@echo "Ensuring security analysis script is executable..."
 	@chmod +x script/security_analysis.sh
 	@echo "Running comprehensive security audit..."
