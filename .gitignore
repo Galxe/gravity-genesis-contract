@@ -26,10 +26,3 @@ jspm_packages
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
-
-# Solc dependencies and output
-generate/output_bytecode/*
-!generate/output_bytecode/.gitkeep
-
-generate/solc-bin/*
-!generate/solc-bin/.gitkeep
