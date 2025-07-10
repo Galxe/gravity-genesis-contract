@@ -1,36 +1,21 @@
-use crate::storage::InMemoryDB;
-use alloy_primitives::address;
-use metrics_util::debugging::{DebugValue, DebuggingRecorder};
+use crate::{
+    contracts::*,
+    storage::InMemoryDB,
+    utils::{SYSTEM_ADDRESS, new_system_call_txn},
+};
 
 use alloy_chains::NamedChain;
 
+use crate::utils::{analyze_revert_reason, execute_revm_sequential_with_logging};
 use alloy_sol_macro::sol;
-use alloy_sol_types::{SolCall, SolConstructor, SolError};
-use grevm::{ParallelState, ParallelTakeBundle, Scheduler};
+use alloy_sol_types::SolCall;
 use revm::{
-    CacheState, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder, TransitionState,
-    db::{
-        AccountRevert, BundleAccount, BundleState, PlainAccount,
-        states::{StorageSlot, bundle_state::BundleRetention},
-    },
-    primitives::{
-        AccountInfo, Address, B256, Bytecode, EVMError, Env, ExecutionResult, KECCAK_EMPTY, SpecId,
-        TxEnv, U256, alloy_primitives::U160, uint,
-    },
+    db::PlainAccount,
+    primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
 };
-use revm_primitives::{Bytes, EnvWithHandlerCfg, ResultAndState, TxKind, hex, keccak256};
+use revm_primitives::{Bytes, hex};
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::min,
-    collections::{BTreeMap, HashMap},
-    fmt::Debug,
-    fs::{self, File},
-    io::{BufReader, BufWriter},
-    sync::Arc,
-    time::Instant,
-};
-
-
+use std::{collections::HashMap, fmt::Debug, fs::File, io::BufWriter};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenesisConfig {
@@ -44,436 +29,6 @@ pub struct GenesisConfig {
     pub voting_powers: Vec<String>,
     #[serde(rename = "voteAddresses")]
     pub vote_addresses: Vec<String>,
-}
-
-// 简化的revert跟踪函数
-fn analyze_revert_reason(result: &ExecutionResult) -> String {
-    match result {
-        ExecutionResult::Revert { gas_used, output } => {
-            let mut reason = format!("Revert with gas used: {}", gas_used);
-            
-            // 尝试解析revert原因
-            if let Some(selector) = output.get(0..4) {
-                reason.push_str(&format!("\nFunction selector: 0x{}", hex::encode(selector)));
-                
-                // 检查常见的错误选择器
-                match selector {
-                    [0x97, 0xb8, 0x83, 0x54] => reason.push_str(" (OnlySystemCaller)"),
-                    [0x0a, 0x5a, 0x60, 0x41] => reason.push_str(" (UnknownParam)"),
-                    [0x11, 0x6c, 0x64, 0xa8] => reason.push_str(" (InvalidValue)"),
-                    [0x83, 0xf1, 0xb1, 0xd3] => reason.push_str(" (OnlyCoinbase)"),
-                    [0xf2, 0x2c, 0x43, 0x90] => reason.push_str(" (OnlyZeroGasPrice)"),
-                    _ => reason.push_str(" (Unknown error selector)"),
-                }
-            }
-            
-            if output.len() > 4 {
-                reason.push_str(&format!("\nAdditional data: 0x{}", hex::encode(&output[4..])));
-            }
-            
-            reason
-        }
-        ExecutionResult::Success { gas_used, .. } => {
-            format!("Success with gas used: {}", gas_used)
-        }
-        ExecutionResult::Halt { reason, gas_used } => {
-            format!("Halt: {:?} with gas used: {}", reason, gas_used)
-        }
-    }
-}
-
-pub const MINER_ADDRESS: usize = 999;
-
-/// Simulate the sequential execution of transactions in reth
-pub(crate) fn execute_revm_sequential<DB>(
-    db: DB,
-    spec_id: SpecId,
-    env: Env,
-    txs: &[TxEnv],
-) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
-where
-    DB: DatabaseRef,
-    DB::Error: Debug,
-{
-    let db = StateBuilder::new()
-        .with_bundle_update()
-        .with_database_ref(db)
-        .build();
-    let mut evm = EvmBuilder::default()
-        .with_db(db)
-        .with_spec_id(spec_id)
-        .with_env(Box::new(env))
-        .build();
-
-    let mut results = Vec::with_capacity(txs.len());
-    for tx in txs {
-        *evm.tx_mut() = tx.clone();
-        let result_and_state = evm.transact()?;
-        evm.db_mut().commit(result_and_state.state);
-        results.push(result_and_state.result);
-    }
-    evm.db_mut().merge_transitions(BundleRetention::Reverts);
-
-    Ok((results, evm.db_mut().take_bundle()))
-}
-
-/// Simulate the sequential execution of transactions with detailed logging
-pub(crate) fn execute_revm_sequential_with_logging<DB>(
-    db: DB,
-    spec_id: SpecId,
-    env: Env,
-    txs: &[TxEnv],
-) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
-where
-    DB: DatabaseRef,
-    DB::Error: Debug,
-{
-    let db = StateBuilder::new()
-        .with_bundle_update()
-        .with_database_ref(db)
-        .build();
-    let mut evm = EvmBuilder::default()
-        .with_db(db)
-        .with_spec_id(spec_id)
-        .with_env(Box::new(env))
-        .build();
-
-    let mut results = Vec::with_capacity(txs.len());
-    for (i, tx) in txs.iter().enumerate() {
-        println!("=== Executing transaction {} ===", i + 1);
-        println!("Transaction details:");
-        println!("  Caller: {:?}", tx.caller);
-        println!("  To: {:?}", tx.transact_to);
-        println!("  Data length: {}", tx.data.len());
-        if tx.data.len() >= 4 {
-            println!("  Function selector: 0x{}", hex::encode(&tx.data[0..4]));
-        }
-        
-        *evm.tx_mut() = tx.clone();
-        let result_and_state = evm.transact()?;
-        evm.db_mut().commit(result_and_state.state);
-        
-        println!("Transaction result: {}", analyze_revert_reason(&result_and_state.result));
-        results.push(result_and_state.result);
-        println!("=== Transaction {} completed ===", i + 1);
-    }
-    evm.db_mut().merge_transitions(BundleRetention::Reverts);
-
-    Ok((results, evm.db_mut().take_bundle()))
-}
-
-// const SYSTEM_ADDRESS: Address = address!("00000000000000000000000000000000000000ff");
-const SYSTEM_ADDRESS: Address = address!("0000000000000000000000000000000000000000");
-const RECONF_ADDRESS: Address = address!("00000000000000000000000000000000000000f0");
-const BLOCK_ADDRESS: Address = address!("00000000000000000000000000000000000000f1");
-const CONSENSUS_CONFIG_ADDRESS: Address = address!("00000000000000000000000000000000000000f2");
-const VALIDATOR_SET_ADDRESS: Address = address!("00000000000000000000000000000000000000f3");
-
-fn new_system_call_txn(contract: Address, input: Bytes) -> TxEnv {
-    TxEnv {
-        caller: SYSTEM_ADDRESS,
-        gas_limit: 30_000_000,
-        gas_price: U256::ZERO,
-        transact_to: TxKind::Call(contract),
-        value: U256::ZERO,
-        data: input,
-        ..Default::default()
-    }
-}
-
-fn new_system_create_txn(hex_code: &str, args: Bytes) -> TxEnv {
-    let mut data = hex::decode(hex_code).expect("Invalid hex string");
-    data.extend_from_slice(&args);
-    TxEnv {
-        caller: SYSTEM_ADDRESS,
-        gas_limit: 30_000_000,
-        gas_price: U256::ZERO,
-        transact_to: TxKind::Create,
-        value: U256::ZERO,
-        data: data.into(),
-        ..Default::default()
-    }
-}
-
-fn read_hex_from_file(path: &str) -> String {
-    std::fs::read_to_string(path).expect(&format!("Failed to open {}", path))
-}
-
-fn deploy_system_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/System.hex", byte_code_dir);
-    let system_sol_hex = read_hex_from_file(&hex_path);
-    let system_address = SYSTEM_ADDRESS.create(1);
-    sol! {
-        contract System {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&system_sol_hex, Bytes::default());
-    (txn, system_address, system_sol_hex)
-}
-
-fn deploy_system_reward_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/SystemReward.hex", byte_code_dir);
-    let system_reward_sol_hex = read_hex_from_file(&hex_path);
-    let system_reward_address = SYSTEM_ADDRESS.create(2);
-    sol! {
-        contract SystemReward {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&system_reward_sol_hex, Bytes::default());
-    (txn, system_reward_address, system_reward_sol_hex)
-}
-
-fn deploy_stake_config_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/StakeConfig.hex", byte_code_dir);
-    let stake_config_sol_hex = read_hex_from_file(&hex_path);
-    let stake_config_address = SYSTEM_ADDRESS.create(3);
-    sol! {
-        contract StakeConfig {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&stake_config_sol_hex, Bytes::default());
-    (txn, stake_config_address, stake_config_sol_hex)
-}
-
-fn deploy_validator_manager_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/ValidatorManager.hex", byte_code_dir);
-    let validator_manager_sol_hex = read_hex_from_file(&hex_path);
-    let validator_manager_address = SYSTEM_ADDRESS.create(4);
-    sol! {
-        contract ValidatorManager {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&validator_manager_sol_hex, Bytes::default());
-    (txn, validator_manager_address, validator_manager_sol_hex)
-}
-
-fn deploy_validator_performance_tracker_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/ValidatorPerformanceTracker.hex", byte_code_dir);
-    let validator_performance_tracker_sol_hex = read_hex_from_file(&hex_path);
-    let validator_performance_tracker_address = SYSTEM_ADDRESS.create(5);
-    sol! {
-        contract ValidatorPerformanceTracker {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&validator_performance_tracker_sol_hex, Bytes::default());
-    (
-        txn,
-        validator_performance_tracker_address,
-        validator_performance_tracker_sol_hex,
-    )
-}
-
-fn deploy_epoch_manager_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/EpochManager.hex", byte_code_dir);
-    let epoch_manager_sol_hex = read_hex_from_file(&hex_path);
-    let epoch_manager_address = SYSTEM_ADDRESS.create(6);
-    sol! {
-        contract EpochManager {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&epoch_manager_sol_hex, Bytes::default());
-    (txn, epoch_manager_address, epoch_manager_sol_hex)
-}
-
-fn deploy_gov_token_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/GovToken.hex", byte_code_dir);
-    let gov_token_sol_hex = read_hex_from_file(&hex_path);
-    let gov_token_address = SYSTEM_ADDRESS.create(7);
-    sol! {
-        contract GovToken {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&gov_token_sol_hex, Bytes::default());
-    (txn, gov_token_address, gov_token_sol_hex)
-}
-
-fn deploy_timelock_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Timelock.hex", byte_code_dir);
-    let timelock_sol_hex = read_hex_from_file(&hex_path);
-    let timelock_address = SYSTEM_ADDRESS.create(8);
-    sol! {
-        contract Timelock {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&timelock_sol_hex, Bytes::default());
-    (txn, timelock_address, timelock_sol_hex)
-}
-
-fn deploy_gravity_governor_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/GravityGovernor.hex", byte_code_dir);
-    let gravity_governor_sol_hex = read_hex_from_file(&hex_path);
-    let gravity_governor_address = SYSTEM_ADDRESS.create(9);
-    sol! {
-        contract GravityGovernor {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&gravity_governor_sol_hex, Bytes::default());
-    (txn, gravity_governor_address, gravity_governor_sol_hex)
-}
-
-fn deploy_jwk_manager_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/JWKManager.hex", byte_code_dir);
-    let jwk_manager_sol_hex = read_hex_from_file(&hex_path);
-    let jwk_manager_address = SYSTEM_ADDRESS.create(10);
-    sol! {
-        contract JWKManager {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&jwk_manager_sol_hex, Bytes::default());
-    (txn, jwk_manager_address, jwk_manager_sol_hex)
-}
-
-fn deploy_keyless_account_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/KeylessAccount.hex", byte_code_dir);
-    let keyless_account_sol_hex = read_hex_from_file(&hex_path);
-    let keyless_account_address = SYSTEM_ADDRESS.create(11);
-    sol! {
-        contract KeylessAccount {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&keyless_account_sol_hex, Bytes::default());
-    (txn, keyless_account_address, keyless_account_sol_hex)
-}
-
-fn deploy_block_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Block.hex", byte_code_dir);
-    let block_sol_hex = read_hex_from_file(&hex_path);
-    let block_address = SYSTEM_ADDRESS.create(12);
-    sol! {
-        contract Block {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&block_sol_hex, Bytes::default());
-    (txn, block_address, block_sol_hex)
-}
-
-fn deploy_timestamp_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Timestamp.hex", byte_code_dir);
-    let timestamp_sol_hex = read_hex_from_file(&hex_path);
-    let timestamp_address = SYSTEM_ADDRESS.create(13);
-    sol! {
-        contract Timestamp {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&timestamp_sol_hex, Bytes::default());
-    (txn, timestamp_address, timestamp_sol_hex)
-}
-
-fn deploy_genesis_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Genesis.hex", byte_code_dir);
-    let genesis_sol_hex = read_hex_from_file(&hex_path);
-    let genesis_address = SYSTEM_ADDRESS.create(14);
-    sol! {
-        contract Genesis {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&genesis_sol_hex, Bytes::default());
-    (txn, genesis_address, genesis_sol_hex)
-}
-
-fn deploy_stake_credit_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/StakeCredit.hex", byte_code_dir);
-    let stake_credit_sol_hex = read_hex_from_file(&hex_path);
-    let stake_credit_address = SYSTEM_ADDRESS.create(15);
-    sol! {
-        contract StakeCredit {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&stake_credit_sol_hex, Bytes::default());
-    (txn, stake_credit_address, stake_credit_sol_hex)
-}
-
-fn deploy_delegation_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Delegation.hex", byte_code_dir);
-    let delegation_sol_hex = read_hex_from_file(&hex_path);
-    let delegation_address = SYSTEM_ADDRESS.create(16);
-    sol! {
-        contract Delegation {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&delegation_sol_hex, Bytes::default());
-    (txn, delegation_address, delegation_sol_hex)
-}
-
-fn deploy_gov_hub_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/GovHub.hex", byte_code_dir);
-    let gov_hub_sol_hex = read_hex_from_file(&hex_path);
-    let gov_hub_address = SYSTEM_ADDRESS.create(17);
-    sol! {
-        contract GovHub {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&gov_hub_sol_hex, Bytes::default());
-    (txn, gov_hub_address, gov_hub_sol_hex)
-}
-
-fn deploy_groth16_verifier_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Groth16Verifier.hex", byte_code_dir);
-    let groth16_verifier_sol_hex = read_hex_from_file(&hex_path);
-    let groth16_verifier_address = SYSTEM_ADDRESS.create(18);
-    sol! {
-        contract Groth16Verifier {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&groth16_verifier_sol_hex, Bytes::default());
-    (txn, groth16_verifier_address, groth16_verifier_sol_hex)
-}
-
-fn deploy_jwk_utils_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/JWKUtils.hex", byte_code_dir);
-    let jwk_utils_sol_hex = read_hex_from_file(&hex_path);
-    let jwk_utils_address = SYSTEM_ADDRESS.create(19);
-    sol! {
-        contract JWKUtils {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&jwk_utils_sol_hex, Bytes::default());
-    (txn, jwk_utils_address, jwk_utils_sol_hex)
-}
-
-fn deploy_protectable_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Protectable.hex", byte_code_dir);
-    let protectable_sol_hex = read_hex_from_file(&hex_path);
-    let protectable_address = SYSTEM_ADDRESS.create(20);
-    sol! {
-        contract Protectable {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&protectable_sol_hex, Bytes::default());
-    (txn, protectable_address, protectable_sol_hex)
-}
-
-fn deploy_bytes_contract(byte_code_dir: &str) -> (TxEnv, Address, String) {
-    let hex_path = format!("{}/Bytes.hex", byte_code_dir);
-    let bytes_sol_hex = read_hex_from_file(&hex_path);
-    let bytes_address = SYSTEM_ADDRESS.create(21);
-    sol! {
-        contract Bytes {
-            constructor();
-        }
-    }
-    let txn = new_system_create_txn(&bytes_sol_hex, revm_primitives::Bytes::default());
-    (txn, bytes_address, bytes_sol_hex)
 }
 
 fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> TxEnv {
@@ -516,6 +71,7 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
     println!("Voting powers: {:?}", voting_powers);
     println!("Vote addresses count: {}", vote_addresses.len());
 
+    // 草 这里根本就没拿到Genesis地址实例啊 要用GENESIS_ADDRESS来初始化出来的
     sol! {
         contract Genesis {
             function initialize(
@@ -542,48 +98,6 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
 
     let txn = new_system_call_txn(genesis_address, call_data.into());
     txn
-}
-
-fn match_execution_revert_reason(r: &ExecutionResult) -> String {
-    sol! {
-        error OnlySystemCaller();
-        // @notice signature: 0x97b88354
-        error UnknownParam(string key, bytes value);
-        // @notice signature: 0x0a5a6041
-        error InvalidValue(string key, bytes value);
-        // @notice signature: 0x116c64a8
-        error OnlyCoinbase();
-        // @notice signature: 0x83f1b1d3
-        error OnlyZeroGasPrice();
-        // @notice signature: 0xf22c4390
-        error OnlySystemContract(address systemContract);
-    }
-    match r {
-        ExecutionResult::Revert { gas_used, output } => match output.as_ref() {
-            b if b == OnlySystemCaller::SELECTOR => {
-                return "Revert Reason: OnlySystemCaller()".to_string();
-            }
-            b if b == UnknownParam::SELECTOR => {
-                return "Revert Reason: UnknownParam()".to_string();
-            }
-            b if b == InvalidValue::SELECTOR => {
-                return "Revert Reason: InvalidValue()".to_string();
-            }
-            b if b == OnlyCoinbase::SELECTOR => {
-                return "Revert Reason: OnlyCoinbase()".to_string();
-            }
-            b if b == OnlyZeroGasPrice::SELECTOR => {
-                return "Revert Reason: OnlyZeroGasPrice()".to_string();
-            }
-            b if b == OnlySystemContract::SELECTOR => {
-                return "Revert Reason: OnlySystemContract()".to_string();
-            }
-            _ => {
-                return format!("Unknown revert reason: {:?}", output);
-            }
-        },
-        _ => "Unknown revert reason".to_string(),
-    }
 }
 
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
@@ -749,13 +263,15 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
         if !r.is_success() {
             println!("=== Transaction {} failed ===", i + 1);
             println!("Detailed analysis: {}", analyze_revert_reason(r));
-            println!("Revert reason: {}", match_execution_revert_reason(r));
             panic!("Genesis transaction {} failed", i + 1);
         }
         println!("Transaction {}: {}", i + 1, analyze_revert_reason(r));
         success_count += 1;
     }
-    println!("=== All {} transactions completed successfully ===", success_count);
+    println!(
+        "=== All {} transactions completed successfully ===",
+        success_count
+    );
     bundle_state.state.remove(&SYSTEM_ADDRESS);
     let genesis_state = bundle_state
         .state
