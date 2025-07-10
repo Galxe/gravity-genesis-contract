@@ -46,7 +46,15 @@ async fn main() -> Result<()> {
 
     info!("Gravity Genesis Binary completed successfully");
 
-    execute::genesis_generate(&args.byte_code_dir, &args.output.unwrap(), config);
+    // 检查output dir是否设置，设置了检查对应的output dir是否存在 不存在则创建并且输出目录名
+    if let Some(output_dir) = &args.output {
+        if !fs::metadata(&output_dir).is_ok() {
+            fs::create_dir_all(&output_dir).unwrap();
+        }
+        info!("Output directory: {}", output_dir);
+    }
+
+    execute::genesis_generate(&args.byte_code_dir, &args.output.unwrap_or("output".to_string()), config);
 
     Ok(())
 } 

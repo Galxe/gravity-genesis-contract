@@ -1,7 +1,7 @@
 use crate::{
     contracts::*,
     storage::InMemoryDB,
-    utils::{SYSTEM_ADDRESS, new_system_call_txn},
+    utils::{new_system_call_txn, read_hex_from_file, BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOVERNOR_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR, SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR, VALIDATOR_MANAGER_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR},
 };
 
 use alloy_chains::NamedChain;
@@ -13,7 +13,7 @@ use revm::{
     db::PlainAccount,
     primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
 };
-use revm_primitives::{Bytes, hex};
+use revm_primitives::{hex, Bytecode, Bytes};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, fs::File, io::BufWriter};
 
@@ -100,7 +100,139 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
     txn
 }
 
+fn only_deploy_bytecode(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
+    let mut map = HashMap::new();
+    let hex_path = format!("{}/System.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(SYSTEM_ADDRESS, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/SystemReward.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(SYSTEM_REWARD_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/StakeConfig.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(STAKE_CONFIG_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/ValidatorManager.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(VALIDATOR_MANAGER_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/ValidatorPerformanceTracker.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(VALIDATOR_PERFORMANCE_TRACKER_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/EpochManager.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(EPOCH_MANAGER_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/GovToken.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(GOV_TOKEN_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/Timelock.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(TIMELOCK_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/GravityGovernor.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(GOVERNOR_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/JWKManager.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(JWK_MANAGER_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/KeylessAccount.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(KEYLESS_ACCOUNT_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/Block.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(BLOCK_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/Timestamp.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(TIMESTAMP_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/Genesis.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(GENESIS_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/StakeCredit.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(STAKE_CREDIT_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/Delegation.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(DELEGATION_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    let hex_path = format!("{}/GovHub.hex", byte_code_dir);
+    let bytes_sol_hex = read_hex_from_file(&hex_path);
+    map.insert(GOV_HUB_ADDR, PlainAccount {
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        storage: Default::default(),
+    });
+
+    // let hex_path = format!("{}/Groth16Verifier.hex", byte_code_dir);
+    // let bytes_sol_hex = read_hex_from_file(&hex_path);
+    // map.insert(GROTH16_VERIFIER_ADDR, PlainAccount {
+    //     info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+    //     storage: Default::default(),
+    // });
+
+    map
+}
+
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
+    let deployed_state = deploy_and_constrcut_all(byte_code_dir);
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
     let db = InMemoryDB::new(
@@ -121,151 +253,24 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     );
 
     let mut txs = Vec::new();
-
-    // 1. 部署 System 合约
-    let (system_txn, system_address, _) = deploy_system_contract(byte_code_dir);
-    println!("System contract address: {:?}", system_address);
-    txs.push(system_txn);
-
-    // 2. 部署 SystemReward 合约
-    let (system_reward_txn, system_reward_address, _) =
-        deploy_system_reward_contract(byte_code_dir);
-    println!("SystemReward contract address: {:?}", system_reward_address);
-    txs.push(system_reward_txn);
-
-    // 3. 部署 StakeConfig 合约
-    let (stake_config_txn, stake_config_address, _) = deploy_stake_config_contract(byte_code_dir);
-    println!("StakeConfig contract address: {:?}", stake_config_address);
-    txs.push(stake_config_txn);
-
-    // 4. 部署 ValidatorManager 合约
-    let (validator_manager_txn, validator_manager_address, _) =
-        deploy_validator_manager_contract(byte_code_dir);
-    println!(
-        "ValidatorManager contract address: {:?}",
-        validator_manager_address
-    );
-    txs.push(validator_manager_txn);
-
-    // 5. 部署 ValidatorPerformanceTracker 合约
-    let (validator_performance_tracker_txn, validator_performance_tracker_address, _) =
-        deploy_validator_performance_tracker_contract(byte_code_dir);
-    println!(
-        "ValidatorPerformanceTracker contract address: {:?}",
-        validator_performance_tracker_address
-    );
-    txs.push(validator_performance_tracker_txn);
-
-    // 6. 部署 EpochManager 合约
-    let (epoch_manager_txn, epoch_manager_address, _) =
-        deploy_epoch_manager_contract(byte_code_dir);
-    println!("EpochManager contract address: {:?}", epoch_manager_address);
-    txs.push(epoch_manager_txn);
-
-    // 7. 部署 GovToken 合约
-    let (gov_token_txn, gov_token_address, _) = deploy_gov_token_contract(byte_code_dir);
-    println!("GovToken contract address: {:?}", gov_token_address);
-    txs.push(gov_token_txn);
-
-    // 8. 部署 Timelock 合约
-    let (timelock_txn, timelock_address, _) = deploy_timelock_contract(byte_code_dir);
-    println!("Timelock contract address: {:?}", timelock_address);
-    txs.push(timelock_txn);
-
-    // 9. 部署 GravityGovernor 合约
-    let (gravity_governor_txn, gravity_governor_address, _) =
-        deploy_gravity_governor_contract(byte_code_dir);
-    println!(
-        "GravityGovernor contract address: {:?}",
-        gravity_governor_address
-    );
-    txs.push(gravity_governor_txn);
-
-    // 10. 部署 JWKManager 合约
-    let (jwk_manager_txn, jwk_manager_address, _) = deploy_jwk_manager_contract(byte_code_dir);
-    println!("JWKManager contract address: {:?}", jwk_manager_address);
-    txs.push(jwk_manager_txn);
-
-    // 11. 部署 KeylessAccount 合约
-    let (keyless_account_txn, keyless_account_address, _) =
-        deploy_keyless_account_contract(byte_code_dir);
-    println!(
-        "KeylessAccount contract address: {:?}",
-        keyless_account_address
-    );
-    txs.push(keyless_account_txn);
-
-    // 12. 部署 Block 合约
-    let (block_txn, block_address, _) = deploy_block_contract(byte_code_dir);
-    println!("Block contract address: {:?}", block_address);
-    txs.push(block_txn);
-
-    // 13. 部署 Timestamp 合约
-    let (timestamp_txn, timestamp_address, _) = deploy_timestamp_contract(byte_code_dir);
-    println!("Timestamp contract address: {:?}", timestamp_address);
-    txs.push(timestamp_txn);
-
-    // 14. 部署 Genesis 合约
-    let (genesis_txn, genesis_address, _) = deploy_genesis_contract(byte_code_dir);
-    println!("Genesis contract address: {:?}", genesis_address);
-    txs.push(genesis_txn);
-
-    // 15. 部署 StakeCredit 合约
-    let (stake_credit_txn, stake_credit_address, _) = deploy_stake_credit_contract(byte_code_dir);
-    println!("StakeCredit contract address: {:?}", stake_credit_address);
-    txs.push(stake_credit_txn);
-
-    // 16. 部署 Delegation 合约
-    let (delegation_txn, delegation_address, _) = deploy_delegation_contract(byte_code_dir);
-    println!("Delegation contract address: {:?}", delegation_address);
-    txs.push(delegation_txn);
-
-    // 17. 部署 GovHub 合约
-    let (gov_hub_txn, gov_hub_address, _) = deploy_gov_hub_contract(byte_code_dir);
-    println!("GovHub contract address: {:?}", gov_hub_address);
-    txs.push(gov_hub_txn);
-
-    // 18. 部署 Groth16Verifier 合约
-    let (groth16_verifier_txn, groth16_verifier_address, _) =
-        deploy_groth16_verifier_contract(byte_code_dir);
-    println!(
-        "Groth16Verifier contract address: {:?}",
-        groth16_verifier_address
-    );
-    txs.push(groth16_verifier_txn);
-
-    // 19. 部署 JWKUtils 合约
-    let (jwk_utils_txn, jwk_utils_address, _) = deploy_jwk_utils_contract(byte_code_dir);
-    println!("JWKUtils contract address: {:?}", jwk_utils_address);
-    txs.push(jwk_utils_txn);
-
-    // 20. 部署 Protectable 合约
-    let (protectable_txn, protectable_address, _) = deploy_protectable_contract(byte_code_dir);
-    println!("Protectable contract address: {:?}", protectable_address);
-    txs.push(protectable_txn);
-
-    // 21. 部署 Bytes 合约
-    let (bytes_txn, bytes_address, _) = deploy_bytes_contract(byte_code_dir);
-    println!("Bytes contract address: {:?}", bytes_address);
-    txs.push(bytes_txn);
-
     // 调用Genesis初始化函数
     println!("Calling Genesis initialize function...");
-    let genesis_init_txn = call_genesis_initialize(genesis_address, &config);
+    let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
     txs.push(genesis_init_txn);
 
-    // 执行所有交易（包括部署和初始化）
     println!("=== Starting Genesis deployment and initialization ===");
     let (result, mut bundle_state) =
-        execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs).unwrap();
+        execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, Some(deployed_state))
+            .unwrap();
     let mut success_count = 0;
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {
             println!("=== Transaction {} failed ===", i + 1);
             println!("Detailed analysis: {}", analyze_revert_reason(r));
             panic!("Genesis transaction {} failed", i + 1);
+        } else {
+            println!("Transaction {}: succeed", i + 1);
         }
-        println!("Transaction {}: {}", i + 1, analyze_revert_reason(r));
         success_count += 1;
     }
     println!(
@@ -291,16 +296,12 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
         })
         .collect::<HashMap<_, _>>();
     serde_json::to_writer_pretty(
-        BufWriter::new(
-            File::create(format!("{output_dir}/gravity/genesis_accounts.json")).unwrap(),
-        ),
+        BufWriter::new(File::create(format!("{output_dir}/genesis_accounts.json")).unwrap()),
         &genesis_state,
     )
     .unwrap();
     serde_json::to_writer_pretty(
-        BufWriter::new(
-            File::create(format!("{output_dir}/gravity/genesis_contracts.json")).unwrap(),
-        ),
+        BufWriter::new(File::create(format!("{output_dir}/genesis_contracts.json")).unwrap()),
         &bundle_state
             .contracts
             .iter()

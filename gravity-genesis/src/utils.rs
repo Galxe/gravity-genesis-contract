@@ -8,11 +8,11 @@ use revm::{
     primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
 use revm_primitives::{Bytes, TxKind, hex};
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::RangeInclusive};
 
 pub const DEAD_ADDRESS: Address = address!("000000000000000000000000000000000000dEaD");
 pub const GENESIS_ADDR: Address = address!("0000000000000000000000000000000000001008");
-pub const SYSTEM_CALLER: Address = address!("0000000000000000000000000000000000000000");
+pub const SYSTEM_CALLER: Address = address!("00000000000000000000000000000000000000ff");
 pub const PERFORMANCE_TRACKER_ADDR: Address = address!("00000000000000000000000000000000000000f1");
 pub const EPOCH_MANAGER_ADDR: Address = address!("00000000000000000000000000000000000000f3");
 pub const STAKE_CONFIG_ADDR: Address = address!("0000000000000000000000000000000000002008");
@@ -32,11 +32,8 @@ pub const GOVERNOR_ADDR: Address = address!("00000000000000000000000000000000000
 pub const TIMELOCK_ADDR: Address = address!("0000000000000000000000000000000000002007");
 
 // const SYSTEM_ADDRESS: Address = address!("00000000000000000000000000000000000000ff");
+// this address is used to call evm. It's not used for gravity pre compile contract
 pub const SYSTEM_ADDRESS: Address = address!("0000000000000000000000000000000000000000");
-pub const RECONF_ADDRESS: Address = address!("00000000000000000000000000000000000000f0");
-pub const BLOCK_ADDRESS: Address = address!("00000000000000000000000000000000000000f1");
-pub const CONSENSUS_CONFIG_ADDRESS: Address = address!("00000000000000000000000000000000000000f2");
-pub const VALIDATOR_SET_ADDRESS: Address = address!("00000000000000000000000000000000000000f3");
 
 // 简化的revert跟踪函数
 pub fn analyze_revert_reason(result: &ExecutionResult) -> String {
@@ -85,15 +82,23 @@ pub(crate) fn execute_revm_sequential_with_logging<DB>(
     spec_id: SpecId,
     env: Env,
     txs: &[TxEnv],
+    pre_bundle_state: Option<BundleState>,
 ) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
 where
     DB: DatabaseRef,
     DB::Error: Debug,
 {
-    let db = StateBuilder::new()
+    let db = if pre_bundle_state.is_some() {
+        StateBuilder::new()
+        .with_bundle_prestate(pre_bundle_state.unwrap())
+        .with_database_ref(db)
+        .build()
+    } else {
+        StateBuilder::new()
         .with_bundle_update()
         .with_database_ref(db)
-        .build();
+        .build()
+    };
     let mut evm = EvmBuilder::default()
         .with_db(db)
         .with_spec_id(spec_id)
@@ -137,7 +142,7 @@ where
 pub fn new_system_call_txn(contract: Address, input: Bytes) -> TxEnv {
     TxEnv {
         caller: SYSTEM_ADDRESS,
-        gas_limit: 30_000_000,
+        gas_limit: 3_000_000_000_000_000_000,
         gas_price: U256::ZERO,
         transact_to: TxKind::Call(contract),
         value: U256::ZERO,
@@ -151,7 +156,7 @@ pub fn new_system_create_txn(hex_code: &str, args: Bytes) -> TxEnv {
     data.extend_from_slice(&args);
     TxEnv {
         caller: SYSTEM_ADDRESS,
-        gas_limit: 30_000_000,
+        gas_limit: 3_000_000_000_000_000_000,
         gas_price: U256::ZERO,
         transact_to: TxKind::Create,
         value: U256::ZERO,
