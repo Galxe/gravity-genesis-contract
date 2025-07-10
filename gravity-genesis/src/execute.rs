@@ -104,7 +104,7 @@ fn only_deploy_bytecode(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
     let mut map = HashMap::new();
     let hex_path = format!("{}/System.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
-    map.insert(SYSTEM_ADDRESS, PlainAccount {
+    map.insert(SYSTEM_CALLER, PlainAccount {
         info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
         storage: Default::default(),
     });
@@ -227,27 +227,45 @@ fn only_deploy_bytecode(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
     //     info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
     //     storage: Default::default(),
     // });
+    map.insert(SYSTEM_ADDRESS, PlainAccount {
+        info: AccountInfo {
+            balance: uint!(1_000_000_000_000_000_000_U256),
+            nonce: 1,
+            code_hash: KECCAK_EMPTY,
+            code: None,
+        },
+        storage: Default::default(),
+    });
+
+    map
+}
+
+fn load_genesis_state(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
+    let mut map = HashMap::new();
+    map.insert(SYSTEM_ADDRESS, PlainAccount {
+        info: AccountInfo {
+            balance: uint!(1_000_000_000_000_000_000_U256),
+            nonce: 1,
+            code_hash: KECCAK_EMPTY,
+            code: None,
+        },
+        storage: Default::default(),
+    });
 
     map
 }
 
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
-    let deployed_state = deploy_and_constrcut_all(byte_code_dir);
+    // let deployed_state = None;
+    // let map = only_deploy_bytecode(byte_code_dir);
+    
+    let deployed_state = Some(deploy_and_constrcut_all(byte_code_dir));
+    let map = load_genesis_state(byte_code_dir);
+    
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
     let db = InMemoryDB::new(
-        HashMap::from([(
-            SYSTEM_ADDRESS,
-            PlainAccount {
-                info: AccountInfo {
-                    balance: uint!(1_000_000_000_000_000_000_U256),
-                    nonce: 1,
-                    code_hash: KECCAK_EMPTY,
-                    code: None,
-                },
-                storage: Default::default(),
-            },
-        )]),
+        map,
         Default::default(),
         Default::default(),
     );
@@ -260,7 +278,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
 
     println!("=== Starting Genesis deployment and initialization ===");
     let (result, mut bundle_state) =
-        execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, Some(deployed_state))
+        execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, deployed_state)
             .unwrap();
     let mut success_count = 0;
     for (i, r) in result.iter().enumerate() {

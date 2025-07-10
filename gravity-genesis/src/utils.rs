@@ -8,7 +8,7 @@ use revm::{
     primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
 use revm_primitives::{Bytes, TxKind, hex};
-use std::{fmt::Debug, ops::RangeInclusive};
+use std::{fmt::Debug, ops::RangeInclusive, u64};
 
 pub const DEAD_ADDRESS: Address = address!("000000000000000000000000000000000000dEaD");
 pub const GENESIS_ADDR: Address = address!("0000000000000000000000000000000000001008");
@@ -142,7 +142,7 @@ where
 pub fn new_system_call_txn(contract: Address, input: Bytes) -> TxEnv {
     TxEnv {
         caller: SYSTEM_ADDRESS,
-        gas_limit: 3_000_000_000_000_000_000,
+        gas_limit: u64::MAX,
         gas_price: U256::ZERO,
         transact_to: TxKind::Call(contract),
         value: U256::ZERO,
@@ -156,7 +156,7 @@ pub fn new_system_create_txn(hex_code: &str, args: Bytes) -> TxEnv {
     data.extend_from_slice(&args);
     TxEnv {
         caller: SYSTEM_ADDRESS,
-        gas_limit: 3_000_000_000_000_000_000,
+        gas_limit: u64::MAX,
         gas_price: U256::ZERO,
         transact_to: TxKind::Create,
         value: U256::ZERO,
