@@ -1,11 +1,7 @@
 use alloy_primitives::address;
 
 use revm::{
-    DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
-    db::{BundleState, states::bundle_state::BundleRetention},
-    inspector_handle_register,
-    inspectors::TracerEip3155,
-    primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
+    db::{states::bundle_state::BundleRetention, BundleState}, inspector_handle_register, inspectors::TracerEip3155, primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256}, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder
 };
 use revm_primitives::{Bytes, TxKind, hex};
 use std::{fmt::Debug, ops::RangeInclusive, u64};
@@ -86,7 +82,7 @@ pub(crate) fn execute_revm_sequential_with_logging<DB>(
 ) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
 where
     DB: DatabaseRef,
-    DB::Error: Debug,
+    // DB::Error: Debug,
 {
     let db = if pre_bundle_state.is_some() {
         StateBuilder::new()

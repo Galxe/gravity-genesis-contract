@@ -1,6 +1,5 @@
 use crate::{
     contracts::*,
-    storage::InMemoryDB,
     utils::{new_system_call_txn, read_hex_from_file, BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOVERNOR_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR, SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR, VALIDATOR_MANAGER_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR},
 };
 
@@ -10,8 +9,7 @@ use crate::utils::{analyze_revert_reason, execute_revm_sequential_with_logging};
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use revm::{
-    db::PlainAccount,
-    primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
+    db::{CacheDB, PlainAccount}, primitives::{uint, AccountInfo, Address, Env, SpecId, TxEnv, KECCAK_EMPTY, U256}, Database, DatabaseRef, InMemoryDB
 };
 use revm_primitives::{hex, Bytecode, Bytes};
 use serde::{Deserialize, Serialize};
@@ -100,125 +98,195 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
     txn
 }
 
-fn only_deploy_bytecode(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
+fn only_deploy_bytecode(byte_code_dir: &str) -> impl DatabaseRef {
+    let revm_db = InMemoryDB::default();
+    let mut db = CacheDB::new(revm_db);
     let mut map = HashMap::new();
     let hex_path = format!("{}/System.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(SYSTEM_CALLER, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(SYSTEM_CALLER, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/SystemReward.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(SYSTEM_REWARD_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(SYSTEM_REWARD_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/StakeConfig.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(STAKE_CONFIG_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(STAKE_CONFIG_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/ValidatorManager.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(VALIDATOR_MANAGER_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(VALIDATOR_MANAGER_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/ValidatorPerformanceTracker.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(VALIDATOR_PERFORMANCE_TRACKER_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(VALIDATOR_PERFORMANCE_TRACKER_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/EpochManager.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(EPOCH_MANAGER_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(EPOCH_MANAGER_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/GovToken.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(GOV_TOKEN_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(GOV_TOKEN_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/Timelock.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(TIMELOCK_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(TIMELOCK_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/GravityGovernor.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(GOVERNOR_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(GOVERNOR_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/JWKManager.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(JWK_MANAGER_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(JWK_MANAGER_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/KeylessAccount.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(KEYLESS_ACCOUNT_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(KEYLESS_ACCOUNT_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/Block.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(BLOCK_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(BLOCK_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/Timestamp.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(TIMESTAMP_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(TIMESTAMP_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/Genesis.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(GENESIS_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(GENESIS_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/StakeCredit.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(STAKE_CREDIT_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(STAKE_CREDIT_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/Delegation.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(DELEGATION_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(DELEGATION_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     let hex_path = format!("{}/GovHub.hex", byte_code_dir);
     let bytes_sol_hex = read_hex_from_file(&hex_path);
     map.insert(GOV_HUB_ADDR, PlainAccount {
-        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
+        info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex.clone()))),
         storage: Default::default(),
+    });
+    db.insert_account_info(GOV_HUB_ADDR, AccountInfo {
+        code: Some(Bytecode::new_raw(Bytes::from(bytes_sol_hex))),
+        ..AccountInfo::default()
     });
 
     // let hex_path = format!("{}/Groth16Verifier.hex", byte_code_dir);
@@ -227,17 +295,24 @@ fn only_deploy_bytecode(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
     //     info: AccountInfo::from_bytecode(Bytecode::LegacyRaw(Bytes::from(bytes_sol_hex))),
     //     storage: Default::default(),
     // });
-    map.insert(SYSTEM_ADDRESS, PlainAccount {
-        info: AccountInfo {
-            balance: uint!(1_000_000_000_000_000_000_U256),
-            nonce: 1,
-            code_hash: KECCAK_EMPTY,
-            code: None,
-        },
-        storage: Default::default(),
+    db.insert_account_info(SYSTEM_ADDRESS, AccountInfo {
+        balance: uint!(1_000_000_000_000_000_000_U256),
+        nonce: 1,
+        code_hash: KECCAK_EMPTY,
+        code: None,
     });
+    // map.insert(SYSTEM_ADDRESS, PlainAccount {
+    //     info: AccountInfo {
+    //         balance: uint!(1_000_000_000_000_000_000_U256),
+    //         nonce: 1,
+    //         code_hash: KECCAK_EMPTY,
+    //         code: None,
+    //     },
+    //     storage: Default::default(),
+    // });
 
-    map
+    // map;
+    db
 }
 
 fn load_genesis_state(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
@@ -256,19 +331,21 @@ fn load_genesis_state(byte_code_dir: &str) -> HashMap<Address, PlainAccount> {
 }
 
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
-    // let deployed_state = None;
-    // let map = only_deploy_bytecode(byte_code_dir);
+    // 这种方式是直接outofgas invalid operand
+    let deployed_state = None;
+    let db = only_deploy_bytecode(byte_code_dir);
     
-    let deployed_state = Some(deploy_and_constrcut_all(byte_code_dir));
-    let map = load_genesis_state(byte_code_dir);
+    // 下面这种方式是报错InvalidInitialization
+    // let deployed_state = Some(deploy_and_constrcut_all(byte_code_dir));
+    // let map = load_genesis_state(byte_code_dir);
     
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
-    let db = InMemoryDB::new(
-        map,
-        Default::default(),
-        Default::default(),
-    );
+    // let db = InMemoryDB::new(
+    //     map,
+    //     Default::default(),
+    //     Default::default(),
+    // );
 
     let mut txs = Vec::new();
     // 调用Genesis初始化函数
@@ -277,9 +354,22 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     txs.push(genesis_init_txn);
 
     println!("=== Starting Genesis deployment and initialization ===");
-    let (result, mut bundle_state) =
+    let r =
         execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, deployed_state)
-            .unwrap();
+            ;
+    let (result, mut bundle_state) = match r {
+        Ok((result, mut bundle_state)) => {
+            (result, bundle_state)
+        },
+        Err(e) => {
+            println!("=== Execution failed ===");
+            println!("Detailed analysis: {:?}", e.map_db_err(|_| "Database error".to_string()));
+            panic!("Genesis execution failed");
+        }
+    };
+    // let (result, mut bundle_state) =
+    //     execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, deployed_state)
+    //         .unwrap();
     let mut success_count = 0;
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {

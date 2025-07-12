@@ -38,7 +38,6 @@ pub fn deploy_stake_config_contract(byte_code_dir: &str) -> (TxEnv, Address, Str
     let stake_config_address = SYSTEM_ADDRESS.create(3);
     sol! {
         contract StakeConfig {
-            constructor();
         }
     }
     let txn = new_system_create_txn(&stake_config_sol_hex, Bytes::default());
@@ -81,7 +80,6 @@ pub fn deploy_epoch_manager_contract(byte_code_dir: &str) -> (TxEnv, Address, St
     let epoch_manager_address = SYSTEM_ADDRESS.create(6);
     sol! {
         contract EpochManager {
-            constructor();
         }
     }
     let txn = new_system_create_txn(&epoch_manager_sol_hex, Bytes::default());
@@ -130,7 +128,6 @@ pub fn deploy_jwk_manager_contract(byte_code_dir: &str) -> (TxEnv, Address, Stri
     let jwk_manager_address = SYSTEM_ADDRESS.create(10);
     sol! {
         contract JWKManager {
-            constructor();
         }
     }
     let txn = new_system_create_txn(&jwk_manager_sol_hex, Bytes::default());
@@ -143,7 +140,6 @@ pub fn deploy_keyless_account_contract(byte_code_dir: &str) -> (TxEnv, Address, 
     let keyless_account_address = SYSTEM_ADDRESS.create(11);
     sol! {
         contract KeylessAccount {
-            constructor();
         }
     }
     let txn = new_system_create_txn(&keyless_account_sol_hex, Bytes::default());
@@ -192,7 +188,6 @@ pub fn deploy_stake_credit_contract(byte_code_dir: &str) -> (TxEnv, Address, Str
     let stake_credit_address = SYSTEM_ADDRESS.create(15);
     sol! {
         contract StakeCredit {
-            constructor();
         }
     }
     let txn = new_system_create_txn(&stake_credit_sol_hex, Bytes::default());
