@@ -5,6 +5,12 @@ Extract bytecode from Foundry compiled artifacts
 This script reads the compiled artifacts from the 'out' directory and extracts
 the bytecode for each contract, saving it as .hex files with the same name
 as the source .sol files.
+
+Key difference:
+- 'bytecode' contains constructor code + runtime code (used for deployment)
+- 'deployedBytecode' contains only runtime code (what gets stored on-chain after deployment)
+
+For genesis initialization, we need constructor bytecode to properly initialize contracts.
 """
 
 import json
@@ -81,11 +87,9 @@ def extract_bytecode_from_artifacts(out_dir: Path, src_dir: Path) -> Dict[str, s
             with open(artifact_file, 'r', encoding='utf-8') as f:
                 artifact_data = json.load(f)
             
-            # Extract bytecode
-            bytecode = artifact_data.get("bytecode", {}).get("object", "")
-            if not bytecode:
-                print(f"   [!] No bytecode found for contract {contract_name}")
-                continue
+            bytecode = artifact_data.get("deployedBytecode", {}).get("object", "")
+            if bytecode:
+                print(f"   [!] Using deployedBytecode for {contract_name}")
             
             bytecodes[contract_name] = bytecode
             print(f"   [+] Extracted bytecode for {contract_name}")
