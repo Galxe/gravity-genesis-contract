@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::Parser;
 use gravity_genesis::execute::{self, GenesisConfig};
 use tracing::{info, Level};
-use tracing_subscriber;
 use std::fs;
 use serde_json;
 
@@ -24,6 +23,10 @@ struct Args {
     /// Save results to file
     #[arg(short, long)]
     output: Option<String>,
+
+    /// Log file path (optional)
+    #[arg(short, long)]
+    log_file: Option<String>,
 }
 
 #[tokio::main]
@@ -32,21 +35,41 @@ async fn main() -> Result<()> {
 
     // Initialize logging
     let level = if args.debug { Level::DEBUG } else { Level::INFO };
-    tracing_subscriber::fmt()
-        .with_max_level(level)
-        .init();
+    
+    // Configure logging based on whether log file is specified
+    if let Some(log_file_path) = &args.log_file {
+        // Create log file directory if it doesn't exist
+        if let Some(parent) = std::path::Path::new(log_file_path).parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        
+        // Set up logging to both file and console
+        let file_appender = tracing_appender::rolling::never("", log_file_path);
+        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+        
+        tracing_subscriber::fmt()
+            .with_max_level(level)
+            .with_writer(non_blocking)
+            .with_ansi(false)
+            .init();
+            
+        info!("Logging to file: {}", log_file_path);
+    } else {
+        // Console-only logging
+        tracing_subscriber::fmt()
+            .with_max_level(level)
+            .init();
+    }
 
     info!("Starting Gravity Genesis Binary");
 
-    // 读取Genesis配置文件
     info!("Reading Genesis configuration from: {}", args.config_file);
     let config_content = fs::read_to_string(&args.config_file)?;
     let config: GenesisConfig = serde_json::from_str(&config_content)?;
     info!("Genesis configuration loaded successfully");
 
-    info!("Gravity Genesis Binary completed successfully");
-
-    // 检查output dir是否设置，设置了检查对应的output dir是否存在 不存在则创建并且输出目录名
     if let Some(output_dir) = &args.output {
         if !fs::metadata(&output_dir).is_ok() {
             fs::create_dir_all(&output_dir).unwrap();
@@ -56,5 +79,6 @@ async fn main() -> Result<()> {
 
     execute::genesis_generate(&args.byte_code_dir, &args.output.unwrap_or("output".to_string()), config);
 
+    info!("Gravity Genesis Binary completed successfully");
     Ok(())
 } 

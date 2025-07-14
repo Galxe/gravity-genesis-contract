@@ -1,10 +1,15 @@
 use alloy_primitives::address;
 
 use revm::{
-    db::{states::bundle_state::BundleRetention, BundleState}, inspector_handle_register, inspectors::TracerEip3155, primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256}, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder
+    DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
+    db::{BundleState, states::bundle_state::BundleRetention},
+    inspector_handle_register,
+    inspectors::TracerEip3155,
+    primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
 use revm_primitives::{Bytes, TxKind, hex};
-use std::{fmt::Debug, ops::RangeInclusive, u64};
+use std::u64;
+use tracing::info;
 
 pub const DEAD_ADDRESS: Address = address!("000000000000000000000000000000000000dEaD");
 pub const GENESIS_ADDR: Address = address!("0000000000000000000000000000000000001008");
@@ -31,17 +36,14 @@ pub const TIMELOCK_ADDR: Address = address!("00000000000000000000000000000000000
 // this address is used to call evm. It's not used for gravity pre compile contract
 pub const SYSTEM_ADDRESS: Address = address!("0000000000000000000000000000000000000000");
 
-// 简化的revert跟踪函数
 pub fn analyze_revert_reason(result: &ExecutionResult) -> String {
     match result {
         ExecutionResult::Revert { gas_used, output } => {
             let mut reason = format!("Revert with gas used: {}", gas_used);
 
-            // 尝试解析revert原因
             if let Some(selector) = output.get(0..4) {
                 reason.push_str(&format!("\nFunction selector: 0x{}", hex::encode(selector)));
 
-                // 检查常见的错误选择器
                 match selector {
                     [0x97, 0xb8, 0x83, 0x54] => reason.push_str(" (OnlySystemCaller)"),
                     [0x0a, 0x5a, 0x60, 0x41] => reason.push_str(" (UnknownParam)"),
@@ -82,18 +84,17 @@ pub(crate) fn execute_revm_sequential_with_logging<DB>(
 ) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
 where
     DB: DatabaseRef,
-    // DB::Error: Debug,
 {
     let db = if pre_bundle_state.is_some() {
         StateBuilder::new()
-        .with_bundle_prestate(pre_bundle_state.unwrap())
-        .with_database_ref(db)
-        .build()
+            .with_bundle_prestate(pre_bundle_state.unwrap())
+            .with_database_ref(db)
+            .build()
     } else {
         StateBuilder::new()
-        .with_bundle_update()
-        .with_database_ref(db)
-        .build()
+            .with_bundle_update()
+            .with_database_ref(db)
+            .build()
     };
     let mut evm = EvmBuilder::default()
         .with_db(db)
@@ -109,13 +110,13 @@ where
 
     let mut results = Vec::with_capacity(txs.len());
     for (i, tx) in txs.iter().enumerate() {
-        println!("=== Executing transaction {} ===", i + 1);
-        println!("Transaction details:");
-        println!("  Caller: {:?}", tx.caller);
-        println!("  To: {:?}", tx.transact_to);
-        println!("  Data length: {}", tx.data.len());
+        info!("=== Executing transaction {} ===", i + 1);
+        info!("Transaction details:");
+        info!("  Caller: {:?}", tx.caller);
+        info!("  To: {:?}", tx.transact_to);
+        info!("  Data length: {}", tx.data.len());
         if tx.data.len() >= 4 {
-            println!("  Function selector: 0x{}", hex::encode(&tx.data[0..4]));
+            info!("  Function selector: 0x{}", hex::encode(&tx.data[0..4]));
         }
 
         *evm.tx_mut() = tx.clone();
@@ -123,12 +124,12 @@ where
         let result_and_state = evm.transact()?;
         evm.db_mut().commit(result_and_state.state);
 
-        println!(
+        info!(
             "Transaction result: {}",
             analyze_revert_reason(&result_and_state.result)
         );
         results.push(result_and_state.result);
-        println!("=== Transaction {} completed ===", i + 1);
+        info!("=== Transaction {} completed ===", i + 1);
     }
     evm.db_mut().merge_transitions(BundleRetention::Reverts);
 

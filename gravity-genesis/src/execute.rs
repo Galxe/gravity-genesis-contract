@@ -16,7 +16,7 @@ use revm::{
     db::{BundleState, CacheDB, PlainAccount},
     primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
 };
-use revm_primitives::{Bytecode, Bytes, EVMError, ExecutionResult, hex};
+use revm_primitives::{Bytecode, Bytes, ExecutionResult, hex};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, fs::File, io::BufWriter};
 use tracing::{debug, error, info, warn};
