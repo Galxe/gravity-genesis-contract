@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Genesis generation script for Gravity blockchain.
-This script combines all the generated files into a final genesis.json.
+This script combines genesis template with account allocation data.
 """
 
 import json
@@ -25,117 +25,42 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
 
 
 def create_genesis_json(
-    accounts_file: str = "output/genesis_accounts.json",
-    contracts_file: str = "output/genesis_contracts.json",
-    bundle_state_file: str = "output/bundle_state.json",
+    template_file: str = "generate/genesis_template.json",
+    account_alloc_file: str = "account_alloc.json",
     output_file: str = "genesis.json"
 ) -> None:
     """
-    Create the final genesis.json file by combining all generated files.
+    Create the final genesis.json file by combining template with account allocation.
     
     Args:
-        accounts_file: Path to genesis_accounts.json
-        contracts_file: Path to genesis_contracts.json  
-        bundle_state_file: Path to bundle_state.json
+        template_file: Path to genesis_template.json
+        account_alloc_file: Path to account_alloc.json (output from combine_account_alloc.py)
         output_file: Output genesis.json file path
     """
     print("🔄 Starting genesis.json generation...")
     
-    # Load all input files
-    print(f"📖 Loading accounts from {accounts_file}")
-    accounts = load_json_file(accounts_file)
+    # Load genesis template
+    print(f"📖 Loading genesis template from {template_file}")
+    genesis = load_json_file(template_file)
     
-    print(f"📖 Loading contracts from {contracts_file}")
-    contracts = load_json_file(contracts_file)
+    # Load account allocation data
+    print(f"📖 Loading account allocation from {account_alloc_file}")
+    account_alloc = load_json_file(account_alloc_file)
     
-    print(f"📖 Loading bundle state from {bundle_state_file}")
-    bundle_state = load_json_file(bundle_state_file)
+    # Merge account allocation into genesis alloc field
+    print("🔧 Merging account allocation into genesis...")
+    # Create a new alloc dict starting with account_alloc data
+    merged_alloc = {}
     
-    # Create the genesis structure
-    genesis = {
-        "config": {
-            "chainId": 1,
-            "homesteadBlock": 0,
-            "eip150Block": 0,
-            "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-            "eip155Block": 0,
-            "eip158Block": 0,
-            "byzantiumBlock": 0,
-            "constantinopleBlock": 0,
-            "petersburgBlock": 0,
-            "istanbulBlock": 0,
-            "muirGlacierBlock": 0,
-            "berlinBlock": 0,
-            "londonBlock": 0,
-            "arrowGlacierBlock": 0,
-            "grayGlacierBlock": 0,
-            "mergeForkBlock": 0,
-            "shanghaiTime": 0,
-            "cancunTime": 0,
-            "gravity": {
-                "gravityBlock": 0
-            }
-        },
-        "nonce": "0x0000000000000000",
-        "timestamp": "0x0",
-        "extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "gasLimit": "0x80000000",
-        "difficulty": "0x1",
-        "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "coinbase": "0x0000000000000000000000000000000000000000",
-        "alloc": {},
-        "number": "0x0",
-        "gasUsed": "0x0",
-        "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "baseFeePerGas": "0x0"
-    }
+    # Add account_alloc data first (at the beginning)
+    merged_alloc.update(account_alloc)
     
-    # Process accounts and add them to alloc
-    print("🔧 Processing accounts...")
-    for address, account_data in accounts.items():
-        if isinstance(account_data, dict) and "info" in account_data:
-            info = account_data["info"]
-            
-            # Convert account info to genesis format
-            genesis_account = {
-                "balance": hex(info.get("balance", 0)),
-                "nonce": hex(info.get("nonce", 0))
-            }
-            
-            # Add code if present
-            if "code" in info and info["code"] is not None:
-                genesis_account["code"] = info["code"]
-            
-            # Add storage if present
-            if "storage" in account_data and account_data["storage"]:
-                genesis_account["storage"] = {}
-                for slot, value in account_data["storage"].items():
-                    genesis_account["storage"][hex(slot)] = hex(value)
-            
-            genesis["alloc"][address] = genesis_account
+    # Then add existing genesis template alloc data
+    if "alloc" in genesis:
+        merged_alloc.update(genesis["alloc"])
     
-    # Add any additional state from bundle_state if needed
-    if "state" in bundle_state:
-        print("🔧 Processing bundle state...")
-        for address, account_data in bundle_state["state"].items():
-            if address not in genesis["alloc"]:
-                # This is a new account created during initialization
-                if isinstance(account_data, dict) and "info" in account_data:
-                    info = account_data["info"]
-                    genesis_account = {
-                        "balance": hex(info.get("balance", 0)),
-                        "nonce": hex(info.get("nonce", 0))
-                    }
-                    
-                    if "code" in info and info["code"] is not None:
-                        genesis_account["code"] = info["code"]
-                    
-                    if "storage" in account_data and account_data["storage"]:
-                        genesis_account["storage"] = {}
-                        for slot, value in account_data["storage"].items():
-                            genesis_account["storage"][hex(slot)] = hex(value)
-                    
-                    genesis["alloc"][address] = genesis_account
+    # Replace the alloc field with merged data
+    genesis["alloc"] = merged_alloc
     
     # Write the final genesis.json
     print(f"💾 Writing genesis.json to {output_file}")
@@ -164,27 +89,24 @@ def create_genesis_json(
 
 def main():
     parser = argparse.ArgumentParser(description="Generate final genesis.json file")
-    parser.add_argument("--accounts", default="output/genesis_accounts.json",
-                       help="Path to genesis_accounts.json")
-    parser.add_argument("--contracts", default="output/genesis_contracts.json", 
-                       help="Path to genesis_contracts.json")
-    parser.add_argument("--bundle-state", default="output/bundle_state.json",
-                       help="Path to bundle_state.json")
+    parser.add_argument("--template", default="generate/genesis_template.json",
+                       help="Path to genesis_template.json")
+    parser.add_argument("--account-alloc", default="account_alloc.json",
+                       help="Path to account_alloc.json (output from combine_account_alloc.py)")
     parser.add_argument("--output", default="genesis.json",
                        help="Output genesis.json file path")
     
     args = parser.parse_args()
     
     # Check if input files exist
-    for file_path in [args.accounts, args.contracts, args.bundle_state]:
+    for file_path in [args.template, args.account_alloc]:
         if not os.path.exists(file_path):
             print(f"❌ Error: Input file {file_path} does not exist")
             sys.exit(1)
     
     create_genesis_json(
-        accounts_file=args.accounts,
-        contracts_file=args.contracts,
-        bundle_state_file=args.bundle_state,
+        template_file=args.template,
+        account_alloc_file=args.account_alloc,
         output_file=args.output
     )
 
