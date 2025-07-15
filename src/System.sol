@@ -13,11 +13,11 @@ contract System {
     address internal constant EPOCH_MANAGER_ADDR = 0x00000000000000000000000000000000000000f3;
     address internal constant STAKE_CONFIG_ADDR = 0x0000000000000000000000000000000000002008;
     address internal constant DELEGATION_ADDR = 0x0000000000000000000000000000000000002009;
-    address internal constant VALIDATOR_MANAGER_ADDR = 0x0000000000000000000000000000000000002009;
+    address internal constant VALIDATOR_MANAGER_ADDR = 0x0000000000000000000000000000000000002010;
     address internal constant VALIDATOR_PERFORMANCE_TRACKER_ADDR = 0x000000000000000000000000000000000000200b;
-    address internal constant BLOCK_ADDR = 0x0000000000000000000000000000000000002003;
+    address internal constant BLOCK_ADDR = 0x0000000000000000000000000000000000002001;
     address internal constant TIMESTAMP_ADDR = 0x0000000000000000000000000000000000002004;
-    address internal constant JWK_MANAGER_ADDR = 0x0000000000000000000000000000000000002005;
+    address internal constant JWK_MANAGER_ADDR = 0x0000000000000000000000000000000000002002;
     address internal constant KEYLESS_ACCOUNT_ADDR = 0x000000000000000000000000000000000000200A;
     address internal constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
     address internal constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
@@ -27,7 +27,7 @@ contract System {
     address internal constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002007;
 
     /*----------------- errors -----------------*/
-    error OnlySystemCaller();
+    error OnlySystemCaller(address errorAddress);
     // @notice signature: 0x97b88354
     error UnknownParam(string key, bytes value);
     // @notice signature: 0x0a5a6041
@@ -44,7 +44,7 @@ contract System {
 
     /*----------------- modifiers -----------------*/
     modifier onlySystemCaller() {
-        if (msg.sender != SYSTEM_CALLER) revert OnlySystemCaller();
+        if (msg.sender != SYSTEM_CALLER) revert OnlySystemCaller(msg.sender);
         _;
     }
 

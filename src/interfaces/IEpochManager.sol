@@ -16,7 +16,7 @@ interface IEpochManager is IParamSubscriber {
     event ConfigParamUpdated(string indexed param, uint256 oldValue, uint256 newValue);
 
     error InvalidEpochDuration();
-    error NotAuthorized();
+    error NotAuthorized(address caller);
     error EpochManager__ParameterNotFound(string param);
     /**
      * @dev Get current epoch number
