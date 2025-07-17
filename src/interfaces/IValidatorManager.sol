@@ -62,6 +62,15 @@ interface IValidatorManager is IReconfigurableModule {
         address initialBeneficiary; // Passed directly to StakeCredit
     }
 
+    struct ValidatorSet {
+        uint8 consensusScheme; // Consensus scheme (0 for BFT)
+        ValidatorInfo[] activeValidators; // Active validators for the current epoch
+        ValidatorInfo[] pendingInactive; // Pending validators to leave in next epoch (still active)
+        ValidatorInfo[] pendingActive; // Pending validators to join in next epoch
+        uint256 totalVotingPower; // Current total voting power
+        uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
+    }
+
     /// Validator registration events
     event ValidatorRegistered(
         address indexed validator, address indexed operator, bytes consensusPublicKey, string moniker
@@ -334,4 +343,10 @@ interface IValidatorManager is IReconfigurableModule {
      * @return validatorInfos Array of all active validators' information
      */
     function getAllActiveValidatorInfos() external view returns (ValidatorInfo[] memory validatorInfos);
+
+    /**
+     * @dev Get comprehensive validator set information matching Aptos requirements
+     * @return ValidatorSet structure containing all validator states and voting powers
+     */
+    function getValidatorSet() external view returns (ValidatorSet memory);
 }

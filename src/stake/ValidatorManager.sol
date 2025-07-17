@@ -1209,4 +1209,44 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         return infos;
     }
+
+    /// @inheritdoc IValidatorManager
+    function getValidatorSet() external view returns (ValidatorSet memory) {
+        ValidatorInfo[] memory active = _getAllValidatorInfos(activeValidators);
+        ValidatorInfo[] memory pendingIn = _getAllValidatorInfos(pendingInactive);
+        ValidatorInfo[] memory pendingAct = _getAllValidatorInfos(pendingActive);
+
+        uint256 joiningPower = _calculateTotalVotingPower(pendingAct);
+
+        return ValidatorSet({
+            consensusScheme: 0, // Default BFT consensus, can be made configurable
+            activeValidators: active,
+            pendingInactive: pendingIn,
+            pendingActive: pendingAct,
+            totalVotingPower: validatorSetData.totalVotingPower,
+            totalJoiningPower: joiningPower
+        });
+    }
+
+    function _getAllValidatorInfos(
+        EnumerableSet.AddressSet storage validatorSet
+    ) private view returns (ValidatorInfo[] memory) {
+        uint256 count = validatorSet.length();
+        ValidatorInfo[] memory infos = new ValidatorInfo[](count);
+        for (uint256 i = 0; i < count; i++) {
+            address validator = validatorSet.at(i);
+            infos[i] = validatorInfos[validator];
+        }
+        return infos;
+    }
+
+    function _calculateTotalVotingPower(
+        ValidatorInfo[] memory validators
+    ) private pure returns (uint256) {
+        uint256 totalPower = 0;
+        for (uint256 i = 0; i < validators.length; i++) {
+            totalPower += validators[i].votingPower;
+        }
+        return totalPower;
+    }
 }
