@@ -10,13 +10,13 @@ import "@src/interfaces/IValidatorManager.sol";
  */
 interface IEpochManager is IParamSubscriber {
     event EpochTransitioned(uint256 indexed newEpoch, uint256 transitionTime);
-    event AllValidatorsUpdated(uint256 indexed newEpoch, IValidatorManager.ValidatorInfo[] validatorInfos);
+    event AllValidatorsUpdated(uint256 indexed newEpoch, IValidatorManager.ValidatorSet validatorSet);
     event EpochDurationUpdated(uint256 oldDuration, uint256 newDuration);
     event ModuleNotificationFailed(address indexed module, bytes reason);
     event ConfigParamUpdated(string indexed param, uint256 oldValue, uint256 newValue);
 
     error InvalidEpochDuration();
-    error NotAuthorized();
+    error NotAuthorized(address caller);
     error EpochManager__ParameterNotFound(string param);
     /**
      * @dev Get current epoch number

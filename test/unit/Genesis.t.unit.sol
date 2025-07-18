@@ -132,7 +132,7 @@ contract GenesisTest is Test, TestConstants {
 
         // Act & Assert
         vm.prank(unauthorizedCaller);
-        vm.expectRevert(System.OnlySystemCaller.selector);
+        vm.expectRevert(abi.encodeWithSelector(System.OnlySystemCaller.selector, unauthorizedCaller));
         genesis.initialize(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
     }
 

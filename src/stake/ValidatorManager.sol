@@ -148,13 +148,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     maxChangeRate: 500 // default max daily change rate 5%
                  }),
                 moniker: string(abi.encodePacked("VAL", uint256(i))), // generate default name
-                createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 registered: true,
                 stakeCreditAddress: address(0),
                 status: ValidatorStatus.ACTIVE,
                 votingPower: votingPower,
                 validatorIndex: i,
-                lastEpochActive: 0,
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 operator: validator // default self as operator
              });
@@ -294,7 +292,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         info.moniker = params.moniker;
         info.commission = params.commission;
-        info.createdTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         info.updateTime = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         info.operator = params.initialOperator;
     }
@@ -315,7 +312,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.status = ValidatorStatus.INACTIVE;
         info.votingPower = 0;
         info.validatorIndex = 0;
-        info.lastEpochActive = 0;
     }
 
     /**
@@ -645,7 +641,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // update status
             info.status = ValidatorStatus.ACTIVE;
-            info.lastEpochActive = currentEpoch;
 
             emit ValidatorStatusChanged(
                 validator, uint8(ValidatorStatus.PENDING_ACTIVE), uint8(ValidatorStatus.ACTIVE), currentEpoch
@@ -671,7 +666,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // update status
             info.status = ValidatorStatus.INACTIVE;
-            info.lastEpochActive = currentEpoch;
 
             // fund status is already handled in StakeCredit.onNewEpoch()
 
@@ -705,7 +699,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
                 info.status = ValidatorStatus.INACTIVE;
                 info.votingPower = 0;
-                info.lastEpochActive = currentEpoch;
 
                 emit ValidatorStatusChanged(
                     validator, uint8(ValidatorStatus.ACTIVE), uint8(ValidatorStatus.INACTIVE), currentEpoch
@@ -964,13 +957,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 maxChangeRate: 500 // default max daily change rate 5%
              }),
             moniker: moniker,
-            createdTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             registered: true,
             stakeCreditAddress: stakeCreditAddress,
             status: status,
             votingPower: 0,
             validatorIndex: 0,
-            lastEpochActive: 0,
             updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
             operator: validator // Default to self
          });
@@ -1198,15 +1189,41 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function getAllActiveValidatorInfos() public view returns (ValidatorInfo[] memory) {
-        uint256 activeCount = activeValidators.length();
-        ValidatorInfo[] memory infos = new ValidatorInfo[](activeCount);
+    function getValidatorSet() external view returns (ValidatorSet memory) {
+        ValidatorInfo[] memory active = _getAllValidatorInfos(activeValidators);
+        ValidatorInfo[] memory pendingIn = _getAllValidatorInfos(pendingInactive);
+        ValidatorInfo[] memory pendingAct = _getAllValidatorInfos(pendingActive);
 
-        for (uint256 i = 0; i < activeCount; i++) {
-            address validator = activeValidators.at(i);
+        uint256 joiningPower = _calculateTotalVotingPower(pendingAct);
+
+        return ValidatorSet({
+            activeValidators: active,
+            pendingInactive: pendingIn,
+            pendingActive: pendingAct,
+            totalVotingPower: validatorSetData.totalVotingPower,
+            totalJoiningPower: joiningPower
+        });
+    }
+
+    function _getAllValidatorInfos(
+        EnumerableSet.AddressSet storage validatorSet
+    ) private view returns (ValidatorInfo[] memory) {
+        uint256 count = validatorSet.length();
+        ValidatorInfo[] memory infos = new ValidatorInfo[](count);
+        for (uint256 i = 0; i < count; i++) {
+            address validator = validatorSet.at(i);
             infos[i] = validatorInfos[validator];
         }
-
         return infos;
+    }
+
+    function _calculateTotalVotingPower(
+        ValidatorInfo[] memory validators
+    ) private pure returns (uint256) {
+        uint256 totalPower = 0;
+        for (uint256 i = 0; i < validators.length; i++) {
+            totalPower += validators[i].votingPower;
+        }
+        return totalPower;
     }
 }
