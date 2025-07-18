@@ -137,9 +137,14 @@ contract ValidatorManagerMock {
         isCurrentEpochValidatorMap[validator] = false;
     }
 
-    function getAllActiveValidatorInfos() external pure returns (IValidatorManager.ValidatorInfo[] memory) {
-        // Return empty array for mock
-        return new IValidatorManager.ValidatorInfo[](0);
+    function getValidatorSet() external pure returns (IValidatorManager.ValidatorSet memory) {
+        return IValidatorManager.ValidatorSet({
+            activeValidators: new IValidatorManager.ValidatorInfo[](0),
+            pendingInactive: new IValidatorManager.ValidatorInfo[](0),
+            pendingActive: new IValidatorManager.ValidatorInfo[](0),
+            totalVotingPower: 0,
+            totalJoiningPower: 0
+        });
     }
 
     function onNewEpoch() external {

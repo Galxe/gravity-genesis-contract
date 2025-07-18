@@ -32,14 +32,12 @@ interface IValidatorManager is IReconfigurableModule {
         bytes voteAddress; // BLS voting address
         Commission commission;
         string moniker;
-        uint256 createdTime;
         bool registered;
         address stakeCreditAddress;
         ValidatorStatus status;
         uint256 votingPower; // Changed from uint64 to uint256 to prevent overflow
         uint256 validatorIndex;
-        uint256 lastEpochActive;
-        uint256 updateTime; // Last update time
+        uint256 updateTime;
         address operator;
     }
 
@@ -63,7 +61,6 @@ interface IValidatorManager is IReconfigurableModule {
     }
 
     struct ValidatorSet {
-        uint8 consensusScheme; // Consensus scheme (0 for BFT)
         ValidatorInfo[] activeValidators; // Active validators for the current epoch
         ValidatorInfo[] pendingInactive; // Pending validators to leave in next epoch (still active)
         ValidatorInfo[] pendingActive; // Pending validators to join in next epoch
@@ -337,12 +334,6 @@ interface IValidatorManager is IReconfigurableModule {
     function getOperator(
         address validator
     ) external view returns (address);
-
-    /**
-     * @dev Get all active validators' complete information for epoch transition
-     * @return validatorInfos Array of all active validators' information
-     */
-    function getAllActiveValidatorInfos() external view returns (ValidatorInfo[] memory validatorInfos);
 
     /**
      * @dev Get comprehensive validator set information matching Aptos requirements
