@@ -82,8 +82,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
         // Notify all system contracts using fixed addresses
         _notifySystemModules();
 
-        IValidatorManager.ValidatorSet memory validatorSet =
-            IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorSet();
+        IValidatorManager.ValidatorSet memory validatorSet = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorSet();
 
         emit AllValidatorsUpdated(newEpoch, validatorSet);
 
