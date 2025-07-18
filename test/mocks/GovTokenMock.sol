@@ -78,4 +78,8 @@ contract GovTokenMock {
     function CLOCK_MODE() external pure returns (string memory) {
         return "mode=blocknumber&from=default";
     }
+
+    function initialize() external {
+        // Mock implementation - do nothing
+    }
 }
