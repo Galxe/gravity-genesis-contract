@@ -35,13 +35,15 @@ contract Genesis is System {
     function initialize(
         address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
-        uint256[] calldata votingPowers
+        uint256[] calldata votingPowers,
+        bytes[] calldata validatorNetworkAddresses,
+        bytes[] calldata fullnodeNetworkAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
         if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
-        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers);
+        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
 
         // 2. Initialize epoch module
         _initializeEpoch();
@@ -69,21 +71,20 @@ contract Genesis is System {
     function _initializeStake(
         address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
-        uint256[] calldata votingPowers
+        uint256[] calldata votingPowers,
+        bytes[] calldata validatorNetworkAddresses,
+        bytes[] calldata fullnodeNetworkAddresses
     ) internal {
         // Initialize StakeConfig
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
 
         // Initialize ValidatorManager with initial validator data
-        bytes[] memory emptyValidatorNetworkAddresses = new bytes[](validatorAddresses.length);
-        bytes[] memory emptyFullnodeNetworkAddresses = new bytes[](validatorAddresses.length);
-
         IValidatorManager.InitializationParams memory initParams = IValidatorManager.InitializationParams({
             validatorAddresses: validatorAddresses,
             consensusPublicKeys: consensusPublicKeys,
             votingPowers: votingPowers,
-            validatorNetworkAddresses: emptyValidatorNetworkAddresses,
-            fullnodeNetworkAddresses: emptyFullnodeNetworkAddresses
+            validatorNetworkAddresses: validatorNetworkAddresses,
+            fullnodeNetworkAddresses: fullnodeNetworkAddresses
         });
 
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(initParams);
