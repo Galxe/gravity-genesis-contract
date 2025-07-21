@@ -13,19 +13,15 @@ contract ValidatorManagerMock {
     bool public initialized;
 
     function initialize(
-        address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        IValidatorManager.InitializationParams calldata params
     ) external {
         initialized = true;
         // Store the validators for testing
-        for (uint256 i = 0; i < validatorAddresses.length; i++) {
-            isCurrentEpochValidatorMap[validatorAddresses[i]] = true;
-            validatorIndexMap[validatorAddresses[i]] = uint64(i);
-            validatorExistsMap[validatorAddresses[i]] = true;
-            validatorStatusMap[validatorAddresses[i]] = IValidatorManager.ValidatorStatus.ACTIVE;
+        for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
+            isCurrentEpochValidatorMap[params.validatorAddresses[i]] = true;
+            validatorIndexMap[params.validatorAddresses[i]] = uint64(i);
+            validatorExistsMap[params.validatorAddresses[i]] = true;
+            validatorStatusMap[params.validatorAddresses[i]] = IValidatorManager.ValidatorStatus.ACTIVE;
         }
     }
 

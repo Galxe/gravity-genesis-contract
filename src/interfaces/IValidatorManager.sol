@@ -28,8 +28,6 @@ interface IValidatorManager is IReconfigurableModule {
     struct ValidatorInfo {
         // Basic information (from ValidatorManager)
         bytes consensusPublicKey;
-        address payable feeAddress; // Fee receiving address
-        bytes voteAddress; // BLS voting address
         Commission commission;
         string moniker;
         bool registered;
@@ -39,6 +37,8 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 validatorIndex;
         uint256 updateTime;
         address operator;
+        bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
     }
 
     // ValidatorSetData structure
@@ -50,14 +50,15 @@ interface IValidatorManager is IReconfigurableModule {
     // Validator registration parameters
     struct ValidatorRegistrationParams {
         bytes consensusPublicKey;
-        address payable feeAddress; // Fee receiving address
-        bytes voteAddress; // BLS voting address
         bytes blsProof; // BLS proof
         Commission commission; // Changed from uint64 commissionRate to Commission struct
         string moniker;
         address initialOperator;
         address initialVoter;
         address initialBeneficiary; // Passed directly to StakeCredit
+        // Network addresses for Aptos compatibility
+        bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
     }
 
     struct ValidatorSet {
@@ -131,15 +132,20 @@ interface IValidatorManager is IReconfigurableModule {
     error ValidatorSetChangeDisabled();
     error NewOperatorIsValidatorSelf();
 
+    // Initialization parameters structure
+    struct InitializationParams {
+        address[] validatorAddresses;
+        bytes[] consensusPublicKeys;
+        uint256[] votingPowers;
+        bytes[] validatorNetworkAddresses;
+        bytes[] fullnodeNetworkAddresses;
+    }
+
     /**
      * @dev Initialize validator set
      */
     function initialize(
-        address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        InitializationParams calldata params
     ) external;
 
     // ======== Validator Registration ========
@@ -192,12 +198,18 @@ interface IValidatorManager is IReconfigurableModule {
     function updateCommissionRate(address validator, uint64 newCommissionRate) external;
 
     /**
-     * @dev Update BLS voting address
+     * @dev Update validator network addresses
      * @param validator Validator address
-     * @param newVoteAddress New voting address
-     * @param blsProof BLS proof
+     * @param newAddresses New validator network addresses (BCS encoded)
      */
-    function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external;
+    function updateValidatorNetworkAddresses(address validator, bytes calldata newAddresses) external;
+
+    /**
+     * @dev Update fullnode network addresses
+     * @param validator Validator address
+     * @param newAddresses New fullnode network addresses (BCS encoded)
+     */
+    function updateFullnodeNetworkAddresses(address validator, bytes calldata newAddresses) external;
 
     // ======== Role Query Functions ========
 
@@ -247,13 +259,6 @@ interface IValidatorManager is IReconfigurableModule {
     ) external view returns (bool);
 
     /**
-     * @dev Check if validator is current active validator (alias for isCurrentEpochValidator)
-     */
-    function isCurrentValidator(
-        address validator
-    ) external view returns (bool);
-
-    /**
      * @dev Get total voting power
      */
     function getTotalVotingPower() external view returns (uint256);
@@ -297,13 +302,6 @@ interface IValidatorManager is IReconfigurableModule {
     function getValidatorStatus(
         address validator
     ) external view returns (ValidatorStatus);
-
-    /**
-     * @dev Get validator's voting address
-     */
-    function getValidatorVoteAddress(
-        address validator
-    ) external view returns (bytes memory);
 
     /**
      * @dev Get validator index in current active validator set

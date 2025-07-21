@@ -34,16 +34,18 @@ contract Genesis is System {
      */
     function initialize(
         address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
+        bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        bytes[] calldata validatorNetworkAddresses,
+        bytes[] calldata fullnodeNetworkAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
-        if (consensusAddresses.length == 0) revert InvalidInitialValidators();
+        if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
-        _initializeStake(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
+        _initializeStake(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // 2. Initialize epoch module
         _initializeEpoch();
@@ -62,7 +64,7 @@ contract Genesis is System {
         // Trigger first epoch
         IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
 
-        emit GenesisCompleted(block.timestamp, consensusAddresses.length);
+        emit GenesisCompleted(block.timestamp, consensusPublicKeys.length);
     }
 
     /**
@@ -70,18 +72,24 @@ contract Genesis is System {
      */
     function _initializeStake(
         address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
+        bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        bytes[] calldata validatorNetworkAddresses,
+        bytes[] calldata fullnodeNetworkAddresses
     ) internal {
         // Initialize StakeConfig
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
 
         // Initialize ValidatorManager with initial validator data
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(
-            validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses
-        );
+        IValidatorManager.InitializationParams memory initParams = IValidatorManager.InitializationParams({
+            validatorAddresses: validatorAddresses,
+            consensusPublicKeys: consensusPublicKeys,
+            votingPowers: votingPowers,
+            validatorNetworkAddresses: validatorNetworkAddresses,
+            fullnodeNetworkAddresses: fullnodeNetworkAddresses
+        });
+
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(initParams);
 
         // Initialize ValidatorPerformanceTracker
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);
