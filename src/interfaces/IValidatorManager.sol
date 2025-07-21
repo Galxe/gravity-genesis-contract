@@ -39,6 +39,8 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 validatorIndex;
         uint256 updateTime;
         address operator;
+        bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
     }
 
     // ValidatorSetData structure
@@ -58,6 +60,9 @@ interface IValidatorManager is IReconfigurableModule {
         address initialOperator;
         address initialVoter;
         address initialBeneficiary; // Passed directly to StakeCredit
+        // Network addresses for Aptos compatibility
+        bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
     }
 
     struct ValidatorSet {
@@ -131,15 +136,22 @@ interface IValidatorManager is IReconfigurableModule {
     error ValidatorSetChangeDisabled();
     error NewOperatorIsValidatorSelf();
 
+    // Initialization parameters structure
+    struct InitializationParams {
+        address[] validatorAddresses;
+        address[] consensusAddresses;
+        address payable[] feeAddresses;
+        uint256[] votingPowers;
+        bytes[] voteAddresses;
+        bytes[] validatorNetworkAddresses;
+        bytes[] fullnodeNetworkAddresses;
+    }
+
     /**
      * @dev Initialize validator set
      */
     function initialize(
-        address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        InitializationParams calldata params
     ) external;
 
     // ======== Validator Registration ========
@@ -198,6 +210,20 @@ interface IValidatorManager is IReconfigurableModule {
      * @param blsProof BLS proof
      */
     function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external;
+
+    /**
+     * @dev Update validator network addresses
+     * @param validator Validator address
+     * @param newAddresses New validator network addresses (BCS encoded)
+     */
+    function updateValidatorNetworkAddresses(address validator, bytes calldata newAddresses) external;
+
+    /**
+     * @dev Update fullnode network addresses
+     * @param validator Validator address
+     * @param newAddresses New fullnode network addresses (BCS encoded)
+     */
+    function updateFullnodeNetworkAddresses(address validator, bytes calldata newAddresses) external;
 
     // ======== Role Query Functions ========
 

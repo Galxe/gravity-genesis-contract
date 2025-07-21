@@ -79,9 +79,20 @@ contract Genesis is System {
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
 
         // Initialize ValidatorManager with initial validator data
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(
-            validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses
-        );
+        bytes[] memory emptyValidatorNetworkAddresses = new bytes[](validatorAddresses.length);
+        bytes[] memory emptyFullnodeNetworkAddresses = new bytes[](validatorAddresses.length);
+
+        IValidatorManager.InitializationParams memory initParams = IValidatorManager.InitializationParams({
+            validatorAddresses: validatorAddresses,
+            consensusAddresses: consensusAddresses,
+            feeAddresses: feeAddresses,
+            votingPowers: votingPowers,
+            voteAddresses: voteAddresses,
+            validatorNetworkAddresses: emptyValidatorNetworkAddresses,
+            fullnodeNetworkAddresses: emptyFullnodeNetworkAddresses
+        });
+
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(initParams);
 
         // Initialize ValidatorPerformanceTracker
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);
