@@ -143,10 +143,10 @@ The `Genesis.initialize()` function is called with validator configuration:
 ```solidity
 function initialize(
     address[] calldata validatorAddresses,
-    address[] calldata consensusAddresses,
-    address payable[] calldata feeAddresses,
+    bytes[] calldata consensusPublicKeys,
     uint256[] calldata votingPowers,
-    bytes[] calldata voteAddresses
+    bytes[] calldata validatorNetworkAddresses,
+    bytes[] calldata fullnodeNetworkAddresses
 ) external;
 ```
 
@@ -171,29 +171,19 @@ After initialization, the complete chain state is captured including:
 ```json
 {
   "validatorAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
   ],
-  "consensusAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
-  ],
-  "feeAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+  "consensusPublicKeys": [
+    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
-    "1000000000000000000000",
-    "1000000000000000000000",
-    "1000000000000000000000"
+    "1"
   ],
-  "voteAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+  "validatorNetworkAddresses": [
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+  ],
+  "fullnodeNetworkAddresses": [
+    ""
   ]
 }
 ```

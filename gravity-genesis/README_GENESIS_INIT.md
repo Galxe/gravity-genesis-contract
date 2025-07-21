@@ -17,29 +17,19 @@
 ```json
 {
   "validatorAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
   ],
-  "consensusAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
-  ],
-  "feeAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+  "consensusPublicKeys": [
+    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
-    "1000000000000000000000",
-    "1000000000000000000000",
-    "1000000000000000000000"
+    "1"
   ],
-  "voteAddresses": [
-    "0x1234567890123456789012345678901234567890",
-    "0x2345678901234567890123456789012345678901",
-    "0x3456789012345678901234567890123456789012"
+  "validatorNetworkAddresses": [
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+  ],
+  "fullnodeNetworkAddresses": [
+    ""
   ]
 }
 ```
@@ -47,10 +37,10 @@
 ### 参数说明
 
 - **validatorAddresses**: 验证人地址列表
-- **consensusAddresses**: 共识地址列表
-- **feeAddresses**: 费用地址列表
+- **consensusPublicKeys**: 共识public key
 - **votingPowers**: 投票权重列表（字符串格式的U256）
-- **voteAddresses**: 投票地址列表（十六进制字符串）
+- **validatorNetworkAddresses**: 投票地址列表（十六进制字符串）
+- **fullnodeNetworkAddresses**: 投票地址列表（十六进制字符串）
 
 ## 使用方法
 
@@ -129,24 +119,19 @@ Genesis合约的initialize函数会：
 ```json
 {
   "validatorAddresses": [
-    "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    "0x8ba1f109551bD432803012645Hac136c772c3e3C"
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
   ],
-  "consensusAddresses": [
-    "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    "0x8ba1f109551bD432803012645Hac136c772c3e3C"
-  ],
-  "feeAddresses": [
-    "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    "0x8ba1f109551bD432803012645Hac136c772c3e3C"
+  "consensusPublicKeys": [
+    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
-    "1000000000000000000000",
-    "1000000000000000000000"
+    "1"
   ],
-  "voteAddresses": [
-    "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
-    "0x8ba1f109551bD432803012645Hac136c772c3e3C"
+  "validatorNetworkAddresses": [
+    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+  ],
+  "fullnodeNetworkAddresses": [
+    ""
   ]
 }
 ``` 

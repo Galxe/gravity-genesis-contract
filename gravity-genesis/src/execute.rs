@@ -25,14 +25,14 @@ use tracing::{debug, error, info, warn};
 pub struct GenesisConfig {
     #[serde(rename = "validatorAddresses")]
     pub validator_addresses: Vec<String>,
-    #[serde(rename = "consensusAddresses")]
-    pub consensus_addresses: Vec<String>,
-    #[serde(rename = "feeAddresses")]
-    pub fee_addresses: Vec<String>,
+    #[serde(rename = "consensusPublicKeys")]
+    pub consensus_public_keys: Vec<String>,
     #[serde(rename = "votingPowers")]
     pub voting_powers: Vec<String>,
-    #[serde(rename = "voteAddresses")]
-    pub vote_addresses: Vec<String>,
+    #[serde(rename = "validatorNetworkAddresses")]
+    pub validator_network_addresses: Vec<String>,
+    #[serde(rename = "fullnodeNetworkAddresses")]
+    pub fullnode_network_addresses: Vec<String>,
 }
 
 const CONTRACTS: [(&str, Address); 17] = [
@@ -73,16 +73,14 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
         .map(|addr| addr.parse::<Address>().expect("Invalid validator address"))
         .collect();
 
-    let consensus_addresses: Vec<Address> = config
-        .consensus_addresses
+    // Convert consensus public keys from hex strings to bytes
+    let consensus_public_keys: Vec<Bytes> = config
+        .consensus_public_keys
         .iter()
-        .map(|addr| addr.parse::<Address>().expect("Invalid consensus address"))
-        .collect();
-
-    let fee_addresses: Vec<Address> = config
-        .fee_addresses
-        .iter()
-        .map(|addr| addr.parse::<Address>().expect("Invalid fee address"))
+        .map(|key| {
+            let key_str = key.strip_prefix("0x").unwrap_or(key);
+            hex::decode(key_str).expect("Invalid consensus public key").into()
+        })
         .collect();
 
     let voting_powers: Vec<U256> = config
@@ -91,38 +89,60 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
         .map(|power| power.parse::<U256>().expect("Invalid voting power"))
         .collect();
 
-    let vote_addresses: Vec<Bytes> = config
-        .vote_addresses
+    // Convert validator network addresses from hex strings to bytes
+    let validator_network_addresses: Vec<Bytes> = config
+        .validator_network_addresses
         .iter()
-        .map(|addr| hex::decode(addr).expect("Invalid vote address").into())
+        .map(|addr| {
+            if addr.is_empty() {
+                Bytes::new()
+            } else {
+                let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                hex::decode(addr_str).expect("Invalid validator network address").into()
+            }
+        })
+        .collect();
+
+    // Convert fullnode network addresses from hex strings to bytes
+    let fullnode_network_addresses: Vec<Bytes> = config
+        .fullnode_network_addresses
+        .iter()
+        .map(|addr| {
+            if addr.is_empty() {
+                Bytes::new()
+            } else {
+                let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                hex::decode(addr_str).expect("Invalid fullnode network address").into()
+            }
+        })
         .collect();
 
     info!("=== Genesis Initialize Parameters ===");
     info!("Genesis address: {:?}", genesis_address);
     info!("Validator addresses: {:?}", validator_addresses);
-    info!("Consensus addresses: {:?}", consensus_addresses);
-    info!("Fee addresses: {:?}", fee_addresses);
+    info!("Consensus public keys count: {}", consensus_public_keys.len());
     info!("Voting powers: {:?}", voting_powers);
-    info!("Vote addresses count: {}", vote_addresses.len());
+    info!("Validator network addresses count: {}", validator_network_addresses.len());
+    info!("Fullnode network addresses count: {}", fullnode_network_addresses.len());
 
     sol! {
         contract Genesis {
             function initialize(
                 address[] calldata validatorAddresses,
-                address[] calldata consensusAddresses,
-                address payable[] calldata feeAddresses,
+                bytes[] calldata consensusPublicKeys,
                 uint256[] calldata votingPowers,
-                bytes[] calldata voteAddresses
+                bytes[] calldata validatorNetworkAddresses,
+                bytes[] calldata fullnodeNetworkAddresses
             ) external;
         }
     }
 
     let call_data = Genesis::initializeCall {
         validatorAddresses: validator_addresses,
-        consensusAddresses: consensus_addresses,
-        feeAddresses: fee_addresses,
+        consensusPublicKeys: consensus_public_keys,
         votingPowers: voting_powers,
-        voteAddresses: vote_addresses,
+        validatorNetworkAddresses: validator_network_addresses,
+        fullnodeNetworkAddresses: fullnode_network_addresses,
     }
     .abi_encode();
 
