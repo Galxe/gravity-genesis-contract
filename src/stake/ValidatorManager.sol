@@ -16,6 +16,7 @@ import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
 import "@src/interfaces/IReconfigurableModule.sol";
+import "@src/lib/ValidatorManagerLib.sol";
 /**
  * @title ValidatorManager
  * @dev Contract for unified validator set management
@@ -23,9 +24,8 @@ import "@src/interfaces/IReconfigurableModule.sol";
 
 contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorManager, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using ValidatorManagerLib for *;
 
-    uint256 private constant BLS_PUBKEY_LENGTH = 48;
-    uint256 private constant BLS_SIG_LENGTH = 96;
     uint256 private constant BREATHE_BLOCK_INTERVAL = 1 days;
     uint64 public constant MAX_VALIDATOR_SET_SIZE = 65536;
 
@@ -36,7 +36,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     // BLS vote address mapping
     mapping(bytes voteAddress => address validator) public voteAddressToValidator; // vote address => validator address
-    mapping(bytes voteAddress => uint256 expiration) public voteExpiration; // vote address => expiration time
 
     // consensus address mapping
     mapping(bytes consensusAddress => address operator) public consensusToValidator; // consensus address => validator address
@@ -114,8 +113,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         if (initialized) revert AlreadyInitialized();
 
         if (
-            params.validatorAddresses.length != params.consensusAddresses.length
-                || params.validatorAddresses.length != params.feeAddresses.length
+            params.validatorAddresses.length != params.consensusPublicKeys.length
                 || params.validatorAddresses.length != params.votingPowers.length
                 || params.validatorAddresses.length != params.voteAddresses.length
                 || params.validatorAddresses.length != params.validatorNetworkAddresses.length
@@ -130,8 +128,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // add initial validators
         for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
             address validator = params.validatorAddresses[i];
-            address consensusAddress = params.consensusAddresses[i];
-            address payable feeAddress = params.feeAddresses[i];
+            bytes memory consensusPublicKey = params.consensusPublicKeys[i];
             uint256 votingPower = params.votingPowers[i];
             bytes memory voteAddress = params.voteAddresses[i];
 
@@ -139,8 +136,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // create basic validator info
             validatorInfos[validator] = ValidatorInfo({
-                consensusPublicKey: abi.encodePacked(consensusAddress),
-                feeAddress: feeAddress,
+                consensusPublicKey: consensusPublicKey,
                 voteAddress: voteAddress,
                 commission: Commission({
                     rate: 0,
@@ -170,8 +166,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             operatorToValidator[validator] = validator;
 
             // Set consensus address mapping
-            if (consensusAddress != address(0)) {
-                consensusToValidator[abi.encodePacked(consensusAddress)] = validator;
+            if (consensusPublicKey.length > 0) {
+                consensusToValidator[consensusPublicKey] = validator;
             }
 
             // Set vote address mapping
@@ -188,7 +184,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator = msg.sender;
 
         // validate params
-        _validateRegistrationParams(validator, params);
+        ValidatorManagerLib.validateRegistrationParams(validator, params, validatorInfos, voteAddressToValidator, consensusToValidator, _monikerSet, operatorToValidator);
 
         // check stake requirements
         uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
@@ -220,61 +216,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         emit StakeCreditDeployed(validator, stakeCreditAddress);
     }
 
-    /**
-     * @dev validate registration params
-     */
-    function _validateRegistrationParams(
-        address validator,
-        ValidatorRegistrationParams calldata params
-    ) internal view {
-        if (validatorInfos[validator].registered) {
-            revert ValidatorAlreadyExists(validator);
-        }
-
-        // check BLS vote address
-        if (params.voteAddress.length > 0 && voteAddressToValidator[params.voteAddress] != address(0)) {
-            revert DuplicateVoteAddress(params.voteAddress);
-        }
-
-        // check consensus address
-        if (params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0)) {
-            revert DuplicateConsensusAddress(params.consensusPublicKey);
-        }
-
-        // check validator name
-        if (!_checkMoniker(params.moniker)) {
-            revert InvalidMoniker(params.moniker);
-        }
-
-        bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
-        if (_monikerSet[monikerHash]) {
-            revert DuplicateMoniker(params.moniker);
-        }
-
-        // check commission settings
-        if (
-            params.commission.maxRate > IStakeConfig(STAKE_CONFIG_ADDR).MAX_COMMISSION_RATE()
-                || params.commission.rate > params.commission.maxRate
-                || params.commission.maxChangeRate > params.commission.maxRate
-        ) {
-            revert InvalidCommission();
-        }
-
-        // check BLS proof
-        if (params.voteAddress.length > 0 && !_checkVoteAddress(validator, params.voteAddress, params.blsProof)) {
-            revert InvalidVoteAddress();
-        }
-
-        // check address validity
-        if (params.initialOperator == address(0)) {
-            revert InvalidAddress(address(0));
-        }
-
-        // check address conflict
-        if (operatorToValidator[params.initialOperator] != address(0)) {
-            revert AddressAlreadyInUse(params.initialOperator, operatorToValidator[params.initialOperator]);
-        }
-    }
 
     /**
      * @dev create validator info
@@ -302,7 +243,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.consensusPublicKey = params.consensusPublicKey;
-        info.feeAddress = params.feeAddress;
         info.voteAddress = params.voteAddress;
         info.validatorNetworkAddresses = params.validatorNetworkAddresses;
         info.fullnodeNetworkAddresses = params.fullnodeNetworkAddresses;
@@ -370,7 +310,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // check voting power increase limit
-        _checkVotingPowerIncrease(votingPower);
+        ValidatorManagerLib.checkVotingPowerIncrease(votingPower, validatorSetData.totalVotingPower, pendingActive, validatorInfos);
 
         // update status to PENDING_ACTIVE
         info.status = ValidatorStatus.PENDING_ACTIVE;
@@ -481,17 +421,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         );
     }
 
-    /**
-     * @dev get validator state
-     */
-    function getValidatorState(
-        address validator
-    ) public view returns (uint8) {
-        if (!validatorInfos[validator].registered) {
-            return uint8(ValidatorStatus.INACTIVE);
-        }
-        return uint8(validatorInfos[validator].status);
-    }
 
     /// @inheritdoc IValidatorManager
     function getValidatorInfo(
@@ -505,12 +434,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return activeValidators.values();
     }
 
-    /// @inheritdoc IValidatorManager
-    function isCurrentValidator(
-        address validator
-    ) external view returns (bool) {
-        return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
-    }
 
     /// @inheritdoc IValidatorManager
     function getValidatorSetData() external view returns (ValidatorSetData memory) {
@@ -591,7 +514,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // validate new vote address
         if (newVoteAddress.length > 0) {
             // BLS proof verification
-            if (!_checkVoteAddress(validator, newVoteAddress, blsProof)) {
+            if (!ValidatorManagerLib.checkVoteAddress(validator, newVoteAddress, blsProof)) {
                 revert InvalidVoteAddress();
             }
 
@@ -608,7 +531,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         bytes memory oldVoteAddress = validatorInfos[validator].voteAddress;
         if (oldVoteAddress.length > 0) {
             delete voteAddressToValidator[oldVoteAddress];
-            voteExpiration[oldVoteAddress] = ITimestamp(TIMESTAMP_ADDR).nowSeconds();
         }
 
         // update validator info
@@ -762,68 +684,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
     }
 
-    /**
-     * @dev check voting power increase limit
-     */
-    function _checkVotingPowerIncrease(
-        uint256 increaseAmount
-    ) internal view {
-        uint256 votingPowerIncreaseLimit = IStakeConfig(STAKE_CONFIG_ADDR).votingPowerIncreaseLimit();
 
-        if (validatorSetData.totalVotingPower > 0) {
-            // 计算所有pending验证人的实际下一个epoch投票权
-            uint256 totalPendingPower = 0;
-            address[] memory pendingVals = pendingActive.values();
-            for (uint256 i = 0; i < pendingVals.length; i++) {
-                totalPendingPower += _getValidatorStake(pendingVals[i]);
-            }
-
-            uint256 currentJoining = totalPendingPower + increaseAmount;
-
-            if (currentJoining * 100 > validatorSetData.totalVotingPower * votingPowerIncreaseLimit) {
-                revert VotingPowerIncreaseExceedsLimit();
-            }
-        }
-    }
-
-    /**
-     * @dev Verify BLS vote address and proof
-     * @param operatorAddress Operator address
-     * @param voteAddress BLS vote address
-     * @param blsProof BLS proof
-     * @return Whether verification succeeded
-     */
-    function _checkVoteAddress(
-        address operatorAddress,
-        bytes calldata voteAddress,
-        bytes calldata blsProof
-    ) internal view returns (bool) {
-        // check lengths
-        if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
-            return false;
-        }
-
-        // generate message hash
-        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, voteAddress, block.chainid));
-        bytes memory msgBz = new bytes(32);
-        assembly {
-            mstore(add(msgBz, 32), msgHash)
-        }
-
-        // call precompiled contract to verify BLS signature
-        // precompiled contract address is 0x66
-        bytes memory input = bytes.concat(msgBz, blsProof, voteAddress); // length: 32 + 96 + 48 = 176
-        bytes memory output = new bytes(1);
-        assembly {
-            let len := mload(input)
-            if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) { revert(0, 0) }
-        }
-        uint8 result = uint8(output[0]);
-        if (result != uint8(1)) {
-            return false;
-        }
-        return true;
-    }
 
     /**
      * @dev Process all StakeCredits for epoch transition
@@ -903,7 +764,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function checkVotingPowerIncrease(
         uint256 increaseAmount
     ) external view {
-        _checkVotingPowerIncrease(increaseAmount);
+        ValidatorManagerLib.checkVotingPowerIncrease(increaseAmount, validatorSetData.totalVotingPower, pendingActive, validatorInfos);
     }
 
     /// @inheritdoc IValidatorManager
@@ -954,43 +815,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator
     ) external view returns (bytes memory) {
         return validatorInfos[validator].voteAddress;
-    }
-
-    /**
-     * @dev Store validator basic information
-     */
-    function _storeValidatorInfo(
-        address validator,
-        bytes memory consensusPublicKey,
-        address payable feeAddress,
-        bytes memory voteAddress,
-        uint64 commissionRate,
-        string memory moniker,
-        address stakeCreditAddress,
-        ValidatorStatus status,
-        bytes memory validatorNetworkAddresses,
-        bytes memory fullnodeNetworkAddresses
-    ) internal {
-        validatorInfos[validator] = ValidatorInfo({
-            consensusPublicKey: consensusPublicKey,
-            feeAddress: feeAddress,
-            voteAddress: voteAddress,
-            commission: Commission({
-                rate: commissionRate,
-                maxRate: 5000, // default max commission rate 50%
-                maxChangeRate: 500 // default max daily change rate 5%
-             }),
-            moniker: moniker,
-            registered: true,
-            stakeCreditAddress: stakeCreditAddress,
-            status: status,
-            votingPower: 0,
-            validatorIndex: 0,
-            updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-            operator: validator, // Default to self
-            validatorNetworkAddresses: validatorNetworkAddresses,
-            fullnodeNetworkAddresses: fullnodeNetworkAddresses
-        });
     }
 
     /**
@@ -1104,64 +928,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return StakeCredit(payable(stakeCreditAddress)).getCurrentEpochVotingPower();
     }
 
-    /**
-     * @dev Check if validator name is valid
-     * @param moniker Validator name
-     * @return Whether the name is valid
-     */
-    function _checkMoniker(
-        string memory moniker
-    ) internal pure returns (bool) {
-        bytes memory bz = bytes(moniker);
 
-        // 1. moniker length should be between 3 and 9
-        if (bz.length < 3 || bz.length > 9) {
-            return false;
-        }
 
-        // 2. first character should be uppercase
-        if (uint8(bz[0]) < 65 || uint8(bz[0]) > 90) {
-            return false;
-        }
-
-        // 3. only alphanumeric characters are allowed
-        for (uint256 i = 1; i < bz.length; ++i) {
-            // Check if the ASCII value of the character falls outside the range of alphanumeric characters
-            if (
-                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) && (uint8(bz[i]) < 65 || uint8(bz[i]) > 90)
-                    && (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
-            ) {
-                // Character is a special character
-                return false;
-            }
-        }
-
-        // No special characters found
-        return true;
-    }
-
-    /**
-     * @dev Check if validator name is already exists
-     * @param moniker Validator name
-     * @return Whether the name is already exists
-     */
-    function isMonikerExists(
-        string calldata moniker
-    ) external view returns (bool) {
-        bytes32 monikerHash = keccak256(abi.encodePacked(moniker));
-        return _monikerSet[monikerHash];
-    }
-
-    /**
-     * @dev Check if validator name is valid
-     * @param moniker Validator name
-     * @return Whether the name is valid
-     */
-    function checkMonikerFormat(
-        string calldata moniker
-    ) external pure returns (bool) {
-        return _checkMoniker(moniker);
-    }
 
     /// @inheritdoc IValidatorManager
     function updateOperator(

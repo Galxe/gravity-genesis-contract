@@ -34,16 +34,15 @@ contract Genesis is System {
      */
     function initialize(
         address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
+        bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
-        if (consensusAddresses.length == 0) revert InvalidInitialValidators();
+        if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
-        _initializeStake(validatorAddresses, consensusAddresses, feeAddresses, votingPowers, voteAddresses);
+        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
 
         // 2. Initialize epoch module
         _initializeEpoch();
@@ -62,7 +61,7 @@ contract Genesis is System {
         // Trigger first epoch
         IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
 
-        emit GenesisCompleted(block.timestamp, consensusAddresses.length);
+        emit GenesisCompleted(block.timestamp, consensusPublicKeys.length);
     }
 
     /**
@@ -70,8 +69,7 @@ contract Genesis is System {
      */
     function _initializeStake(
         address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
+        bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
         bytes[] calldata voteAddresses
     ) internal {
@@ -84,8 +82,7 @@ contract Genesis is System {
 
         IValidatorManager.InitializationParams memory initParams = IValidatorManager.InitializationParams({
             validatorAddresses: validatorAddresses,
-            consensusAddresses: consensusAddresses,
-            feeAddresses: feeAddresses,
+            consensusPublicKeys: consensusPublicKeys,
             votingPowers: votingPowers,
             voteAddresses: voteAddresses,
             validatorNetworkAddresses: emptyValidatorNetworkAddresses,

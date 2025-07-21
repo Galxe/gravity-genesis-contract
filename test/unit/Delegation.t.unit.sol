@@ -54,8 +54,7 @@ contract DelegationTest is Test, TestConstants {
         // Initialize mocks that have initialize function
         IValidatorManager.InitializationParams memory emptyParams = IValidatorManager.InitializationParams({
             validatorAddresses: new address[](0),
-            consensusAddresses: new address[](0),
-            feeAddresses: new address payable[](0),
+            consensusPublicKeys: new bytes[](0),
             votingPowers: new uint256[](0),
             voteAddresses: new bytes[](0),
             validatorNetworkAddresses: new bytes[](0),
