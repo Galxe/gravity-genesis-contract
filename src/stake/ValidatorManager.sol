@@ -34,7 +34,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     // validator info mapping
     mapping(address validator => ValidatorInfo validatorInfo) public validatorInfos;
 
-
     // consensus address mapping
     mapping(bytes consensusAddress => address operator) public consensusToValidator; // consensus address => validator address
 
@@ -164,7 +163,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             if (consensusPublicKey.length > 0) {
                 consensusToValidator[consensusPublicKey] = validator;
             }
-
         }
     }
 
@@ -175,7 +173,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator = msg.sender;
 
         // validate params
-        ValidatorManagerLib.validateRegistrationParams(validator, params, validatorInfos, consensusToValidator, _monikerSet, operatorToValidator);
+        ValidatorManagerLib.validateRegistrationParams(
+            validator, params, validatorInfos, consensusToValidator, _monikerSet, operatorToValidator
+        );
 
         // check stake requirements
         uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
@@ -206,7 +206,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);
     }
-
 
     /**
      * @dev create validator info
@@ -254,7 +253,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function _setupValidatorMappings(address validator, ValidatorRegistrationParams calldata params) internal {
         operatorToValidator[params.initialOperator] = validator;
 
-
         if (params.consensusPublicKey.length > 0) {
             consensusToValidator[params.consensusPublicKey] = validator;
         }
@@ -297,7 +295,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // check voting power increase limit
-        ValidatorManagerLib.checkVotingPowerIncrease(votingPower, validatorSetData.totalVotingPower, pendingActive, validatorInfos);
+        ValidatorManagerLib.checkVotingPowerIncrease(
+            votingPower, validatorSetData.totalVotingPower, pendingActive, validatorInfos
+        );
 
         // update status to PENDING_ACTIVE
         info.status = ValidatorStatus.PENDING_ACTIVE;
@@ -408,7 +408,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         );
     }
 
-
     /// @inheritdoc IValidatorManager
     function getValidatorInfo(
         address validator
@@ -420,7 +419,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function getActiveValidators() external view returns (address[] memory) {
         return activeValidators.values();
     }
-
 
     /// @inheritdoc IValidatorManager
     function getValidatorSetData() external view returns (ValidatorSetData memory) {
@@ -491,7 +489,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         emit CommissionRateEdited(validator, newCommissionRate);
         emit ValidatorInfoUpdated(validator, "commissionRate");
     }
-
 
     /// @inheritdoc IValidatorManager
     function updateValidatorNetworkAddresses(
@@ -633,8 +630,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
     }
 
-
-
     /**
      * @dev Process all StakeCredits for epoch transition
      */
@@ -713,7 +708,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function checkVotingPowerIncrease(
         uint256 increaseAmount
     ) external view {
-        ValidatorManagerLib.checkVotingPowerIncrease(increaseAmount, validatorSetData.totalVotingPower, pendingActive, validatorInfos);
+        ValidatorManagerLib.checkVotingPowerIncrease(
+            increaseAmount, validatorSetData.totalVotingPower, pendingActive, validatorInfos
+        );
     }
 
     /// @inheritdoc IValidatorManager
@@ -758,7 +755,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
         return validatorInfos[validator].status;
     }
-
 
     /**
      * @dev Get validator index in current active validator set
@@ -870,9 +866,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
         return StakeCredit(payable(stakeCreditAddress)).getCurrentEpochVotingPower();
     }
-
-
-
 
     /// @inheritdoc IValidatorManager
     function updateOperator(

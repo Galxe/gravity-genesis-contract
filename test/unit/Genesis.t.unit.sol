@@ -195,9 +195,7 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, validatorCount);
-        genesis.initialize(
-            largeValidatorAddresses, largeConsensusPublicKeys, largeVotingPowers
-        );
+        genesis.initialize(largeValidatorAddresses, largeConsensusPublicKeys, largeVotingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -300,11 +298,16 @@ contract GenesisTest is Test, TestConstants {
         realisticValidators[3] = 0x4567890123456789012345678901234567890123;
         realisticValidators[4] = 0x5678901234567890123456789012345678901234;
 
-        realisticConsensusPublicKeys[0] = abi.encodePacked(bytes32(uint256(uint160(0xabCDEF1234567890ABcDEF1234567890aBCDeF12))));
-        realisticConsensusPublicKeys[1] = abi.encodePacked(bytes32(uint256(uint160(0xbcdeF1234567890aBcDef1234567890abcDEf123))));
-        realisticConsensusPublicKeys[2] = abi.encodePacked(bytes32(uint256(uint160(0xCDeF1234567890ABCDEf1234567890abcdEF1234))));
-        realisticConsensusPublicKeys[3] = abi.encodePacked(bytes32(uint256(uint160(0xdEF1234567890AbcdEF1234567890aBcdEF12345))));
-        realisticConsensusPublicKeys[4] = abi.encodePacked(bytes32(uint256(uint160(0xEF1234567890ABcDEf1234567890abCdEf123456))));
+        realisticConsensusPublicKeys[0] =
+            abi.encodePacked(bytes32(uint256(uint160(0xabCDEF1234567890ABcDEF1234567890aBCDeF12))));
+        realisticConsensusPublicKeys[1] =
+            abi.encodePacked(bytes32(uint256(uint160(0xbcdeF1234567890aBcDef1234567890abcDEf123))));
+        realisticConsensusPublicKeys[2] =
+            abi.encodePacked(bytes32(uint256(uint160(0xCDeF1234567890ABCDEf1234567890abcdEF1234))));
+        realisticConsensusPublicKeys[3] =
+            abi.encodePacked(bytes32(uint256(uint160(0xdEF1234567890AbcdEF1234567890aBcdEF12345))));
+        realisticConsensusPublicKeys[4] =
+            abi.encodePacked(bytes32(uint256(uint160(0xEF1234567890ABcDEf1234567890abCdEf123456))));
 
         for (uint256 i = 0; i < 5; i++) {
             realisticPowers[i] = uint256(10000000 + i * 1000000); // 10M, 11M, 12M, etc.

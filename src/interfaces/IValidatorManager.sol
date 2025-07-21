@@ -197,7 +197,6 @@ interface IValidatorManager is IReconfigurableModule {
      */
     function updateCommissionRate(address validator, uint64 newCommissionRate) external;
 
-
     /**
      * @dev Update validator network addresses
      * @param validator Validator address
@@ -259,7 +258,6 @@ interface IValidatorManager is IReconfigurableModule {
         address validator
     ) external view returns (bool);
 
-
     /**
      * @dev Get total voting power
      */
@@ -304,7 +302,6 @@ interface IValidatorManager is IReconfigurableModule {
     function getValidatorStatus(
         address validator
     ) external view returns (ValidatorStatus);
-
 
     /**
      * @dev Get validator index in current active validator set

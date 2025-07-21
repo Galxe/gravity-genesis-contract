@@ -104,7 +104,8 @@ library ValidatorManagerLib {
         EnumerableSet.AddressSet storage pendingActive,
         mapping(address => IValidatorManager.ValidatorInfo) storage validatorInfos
     ) external view {
-        uint256 votingPowerIncreaseLimit = IStakeConfig(0x0000000000000000000000000000000000002008).votingPowerIncreaseLimit();
+        uint256 votingPowerIncreaseLimit =
+            IStakeConfig(0x0000000000000000000000000000000000002008).votingPowerIncreaseLimit();
 
         if (totalVotingPower > 0) {
             // 计算所有pending验证人的实际下一个epoch投票权
@@ -140,7 +141,6 @@ library ValidatorManagerLib {
             revert IValidatorManager.ValidatorAlreadyExists(validator);
         }
 
-
         // check consensus address
         if (params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0)) {
             revert IValidatorManager.DuplicateConsensusAddress(params.consensusPublicKey);
@@ -166,7 +166,10 @@ library ValidatorManagerLib {
         }
 
         // check BLS proof
-        if (params.consensusPublicKey.length > 0 && !_checkConsensusKeyInternal(validator, params.consensusPublicKey, params.blsProof)) {
+        if (
+            params.consensusPublicKey.length > 0
+                && !_checkConsensusKeyInternal(validator, params.consensusPublicKey, params.blsProof)
+        ) {
             revert IValidatorManager.InvalidVoteAddress();
         }
 
@@ -177,7 +180,9 @@ library ValidatorManagerLib {
 
         // check address conflict
         if (operatorToValidator[params.initialOperator] != address(0)) {
-            revert IValidatorManager.AddressAlreadyInUse(params.initialOperator, operatorToValidator[params.initialOperator]);
+            revert IValidatorManager.AddressAlreadyInUse(
+                params.initialOperator, operatorToValidator[params.initialOperator]
+            );
         }
     }
 
