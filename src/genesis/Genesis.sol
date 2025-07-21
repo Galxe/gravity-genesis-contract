@@ -43,7 +43,9 @@ contract Genesis is System {
         if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
-        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        _initializeStake(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // 2. Initialize epoch module
         _initializeEpoch();

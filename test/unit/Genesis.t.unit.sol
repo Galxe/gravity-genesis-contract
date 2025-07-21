@@ -91,8 +91,10 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, 3);
-        
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -104,7 +106,9 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert - Check that all subsystems were initialized
         // (This would be verified by the mock contracts if they tracked initialization calls)
@@ -117,7 +121,9 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         // The epoch transition should have been triggered
@@ -134,13 +140,17 @@ contract GenesisTest is Test, TestConstants {
         // Act & Assert
         vm.prank(unauthorizedCaller);
         vm.expectRevert(abi.encodeWithSelector(System.OnlySystemCaller.selector, unauthorizedCaller));
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
     }
 
     function test_initialize_onlySystemCaller_shouldWork() public {
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         assertTrue(genesis.isGenesisCompleted());
     }
@@ -150,13 +160,17 @@ contract GenesisTest is Test, TestConstants {
     function test_initialize_alreadyCompleted_shouldRevert() public {
         // Arrange - Complete genesis first
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
         assertTrue(genesis.isGenesisCompleted());
 
         // Act & Assert - Try to initialize again
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
     }
 
     // ============ VALIDATION TESTS ============
@@ -172,7 +186,9 @@ contract GenesisTest is Test, TestConstants {
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.InvalidInitialValidators.selector);
-        genesis.initialize(emptyValidators, emptyConsensus, emptyPowers, emptyValidatorNetworkAddresses, emptyFullnodeNetworkAddresses);
+        genesis.initialize(
+            emptyValidators, emptyConsensus, emptyPowers, emptyValidatorNetworkAddresses, emptyFullnodeNetworkAddresses
+        );
     }
 
     function test_initialize_singleValidator_shouldWork() public {
@@ -191,7 +207,13 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(singleValidator, singleConsensus, singlePower, singleValidatorNetworkAddresses, singleFullnodeNetworkAddresses);
+        genesis.initialize(
+            singleValidator,
+            singleConsensus,
+            singlePower,
+            singleValidatorNetworkAddresses,
+            singleFullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -218,7 +240,13 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, validatorCount);
-        genesis.initialize(largeValidatorAddresses, largeConsensusPublicKeys, largeVotingPowers, largeValidatorNetworkAddresses, largeFullnodeNetworkAddresses);
+        genesis.initialize(
+            largeValidatorAddresses,
+            largeConsensusPublicKeys,
+            largeVotingPowers,
+            largeValidatorNetworkAddresses,
+            largeFullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -232,7 +260,9 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -246,7 +276,9 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -255,7 +287,9 @@ contract GenesisTest is Test, TestConstants {
     function test_initialize_emptyVoteAddresses_shouldWork() public {
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -271,7 +305,9 @@ contract GenesisTest is Test, TestConstants {
     function test_isGenesisCompleted_afterInitialization_shouldReturnTrue() public {
         // Arrange & Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -288,7 +324,9 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(expectedTimestamp, expectedValidatorCount);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
     }
 
     function test_fullGenesisWorkflow_shouldInitializeAllComponents() public {
@@ -297,7 +335,9 @@ contract GenesisTest is Test, TestConstants {
 
         // Act - Complete genesis
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
 
         // Assert - Verify final state
         assertTrue(genesis.isGenesisCompleted());
@@ -305,7 +345,9 @@ contract GenesisTest is Test, TestConstants {
         // Verify that we cannot initialize again
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses);
+        genesis.initialize(
+            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+        );
     }
 
     function test_genesisWithRealWorldData_shouldWork() public {
@@ -352,7 +394,13 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(realisticValidators, realisticConsensusPublicKeys, realisticPowers, realisticValidatorNetworkAddresses, realisticFullnodeNetworkAddresses);
+        genesis.initialize(
+            realisticValidators,
+            realisticConsensusPublicKeys,
+            realisticPowers,
+            realisticValidatorNetworkAddresses,
+            realisticFullnodeNetworkAddresses
+        );
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
