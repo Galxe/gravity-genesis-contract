@@ -97,8 +97,9 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
             if addr.is_empty() {
                 Bytes::new()
             } else {
-                let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
-                hex::decode(addr_str).expect("Invalid validator network address").into()
+                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                // hex::decode(addr_str).expect("Invalid validator network address").into()
+                Bytes::from(addr.as_bytes().to_vec())
             }
         })
         .collect();
@@ -111,8 +112,9 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
             if addr.is_empty() {
                 Bytes::new()
             } else {
-                let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
-                hex::decode(addr_str).expect("Invalid fullnode network address").into()
+                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                // hex::decode(addr_str).expect("Invalid validator network address").into()
+                Bytes::from(addr.as_bytes().to_vec())
             }
         })
         .collect();
