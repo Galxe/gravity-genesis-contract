@@ -24,7 +24,6 @@ contract GenesisTest is Test, TestConstants {
     address[] public validatorAddresses;
     bytes[] public consensusPublicKeys;
     uint256[] public votingPowers;
-    bytes[] public voteAddresses;
 
     function setUp() public {
         // Deploy Genesis contract
@@ -42,7 +41,6 @@ contract GenesisTest is Test, TestConstants {
         validatorAddresses = new address[](3);
         consensusPublicKeys = new bytes[](3);
         votingPowers = new uint256[](3);
-        voteAddresses = new bytes[](3);
 
         validatorAddresses[0] = address(0x1111);
         validatorAddresses[1] = address(0x2222);
@@ -55,10 +53,6 @@ contract GenesisTest is Test, TestConstants {
         votingPowers[0] = 1000;
         votingPowers[1] = 2000;
         votingPowers[2] = 1500;
-
-        voteAddresses[0] = "vote1";
-        voteAddresses[1] = "vote2";
-        voteAddresses[2] = "vote3";
     }
 
     function _deployMockContracts() internal {
@@ -85,7 +79,7 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, 3);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -97,7 +91,7 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert - Check that all subsystems were initialized
         // (This would be verified by the mock contracts if they tracked initialization calls)
@@ -110,7 +104,7 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         // The epoch transition should have been triggered
@@ -127,13 +121,13 @@ contract GenesisTest is Test, TestConstants {
         // Act & Assert
         vm.prank(unauthorizedCaller);
         vm.expectRevert(abi.encodeWithSelector(System.OnlySystemCaller.selector, unauthorizedCaller));
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
     }
 
     function test_initialize_onlySystemCaller_shouldWork() public {
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         assertTrue(genesis.isGenesisCompleted());
     }
@@ -143,13 +137,13 @@ contract GenesisTest is Test, TestConstants {
     function test_initialize_alreadyCompleted_shouldRevert() public {
         // Arrange - Complete genesis first
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
         assertTrue(genesis.isGenesisCompleted());
 
         // Act & Assert - Try to initialize again
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
     }
 
     // ============ VALIDATION TESTS ============
@@ -159,12 +153,11 @@ contract GenesisTest is Test, TestConstants {
         address[] memory emptyValidators = new address[](0);
         bytes[] memory emptyConsensus = new bytes[](0);
         uint256[] memory emptyPowers = new uint256[](0);
-        bytes[] memory emptyVotes = new bytes[](0);
 
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.InvalidInitialValidators.selector);
-        genesis.initialize(emptyValidators, emptyConsensus, emptyPowers, emptyVotes);
+        genesis.initialize(emptyValidators, emptyConsensus, emptyPowers);
     }
 
     function test_initialize_singleValidator_shouldWork() public {
@@ -172,16 +165,14 @@ contract GenesisTest is Test, TestConstants {
         address[] memory singleValidator = new address[](1);
         bytes[] memory singleConsensus = new bytes[](1);
         uint256[] memory singlePower = new uint256[](1);
-        bytes[] memory singleVote = new bytes[](1);
 
         singleValidator[0] = address(0x1111);
         singleConsensus[0] = abi.encodePacked(bytes32(uint256(0x2222)));
         singlePower[0] = 1000;
-        singleVote[0] = "vote1";
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(singleValidator, singleConsensus, singlePower, singleVote);
+        genesis.initialize(singleValidator, singleConsensus, singlePower);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -193,13 +184,11 @@ contract GenesisTest is Test, TestConstants {
         address[] memory largeValidatorAddresses = new address[](validatorCount);
         bytes[] memory largeConsensusPublicKeys = new bytes[](validatorCount);
         uint256[] memory largeVotingPowers = new uint256[](validatorCount);
-        bytes[] memory largeVoteAddresses = new bytes[](validatorCount);
 
         for (uint256 i = 0; i < validatorCount; i++) {
             largeValidatorAddresses[i] = address(uint160(0x1000 + i));
             largeConsensusPublicKeys[i] = abi.encodePacked(bytes32(uint256(0x2000 + i)));
             largeVotingPowers[i] = uint256(1000 + i);
-            largeVoteAddresses[i] = abi.encodePacked("vote", i);
         }
 
         // Act
@@ -207,7 +196,7 @@ contract GenesisTest is Test, TestConstants {
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(block.timestamp, validatorCount);
         genesis.initialize(
-            largeValidatorAddresses, largeConsensusPublicKeys, largeVotingPowers, largeVoteAddresses
+            largeValidatorAddresses, largeConsensusPublicKeys, largeVotingPowers
         );
 
         // Assert
@@ -222,7 +211,7 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -236,21 +225,16 @@ contract GenesisTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
     }
 
     function test_initialize_emptyVoteAddresses_shouldWork() public {
-        // Arrange - Empty vote addresses
-        voteAddresses[0] = "";
-        voteAddresses[1] = "";
-        voteAddresses[2] = "";
-
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -266,7 +250,7 @@ contract GenesisTest is Test, TestConstants {
     function test_isGenesisCompleted_afterInitialization_shouldReturnTrue() public {
         // Arrange & Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());
@@ -283,7 +267,7 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(expectedTimestamp, expectedValidatorCount);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
     }
 
     function test_fullGenesisWorkflow_shouldInitializeAllComponents() public {
@@ -292,7 +276,7 @@ contract GenesisTest is Test, TestConstants {
 
         // Act - Complete genesis
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // Assert - Verify final state
         assertTrue(genesis.isGenesisCompleted());
@@ -300,7 +284,7 @@ contract GenesisTest is Test, TestConstants {
         // Verify that we cannot initialize again
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
-        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        genesis.initialize(validatorAddresses, consensusPublicKeys, votingPowers);
     }
 
     function test_genesisWithRealWorldData_shouldWork() public {
@@ -308,7 +292,6 @@ contract GenesisTest is Test, TestConstants {
         address[] memory realisticValidators = new address[](5);
         bytes[] memory realisticConsensusPublicKeys = new bytes[](5);
         uint256[] memory realisticPowers = new uint256[](5);
-        bytes[] memory realisticVotes = new bytes[](5);
 
         // addresses and powers
         realisticValidators[0] = 0x1234567890123456789012345678901234567890;
@@ -325,12 +308,11 @@ contract GenesisTest is Test, TestConstants {
 
         for (uint256 i = 0; i < 5; i++) {
             realisticPowers[i] = uint256(10000000 + i * 1000000); // 10M, 11M, 12M, etc.
-            realisticVotes[i] = abi.encodePacked("validator_", i, "_vote_address");
         }
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        genesis.initialize(realisticValidators, realisticConsensusPublicKeys, realisticPowers, realisticVotes);
+        genesis.initialize(realisticValidators, realisticConsensusPublicKeys, realisticPowers);
 
         // Assert
         assertTrue(genesis.isGenesisCompleted());

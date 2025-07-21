@@ -56,7 +56,6 @@ contract DelegationTest is Test, TestConstants {
             validatorAddresses: new address[](0),
             consensusPublicKeys: new bytes[](0),
             votingPowers: new uint256[](0),
-            voteAddresses: new bytes[](0),
             validatorNetworkAddresses: new bytes[](0),
             fullnodeNetworkAddresses: new bytes[](0)
         });

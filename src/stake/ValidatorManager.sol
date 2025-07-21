@@ -34,8 +34,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     // validator info mapping
     mapping(address validator => ValidatorInfo validatorInfo) public validatorInfos;
 
-    // BLS vote address mapping
-    mapping(bytes voteAddress => address validator) public voteAddressToValidator; // vote address => validator address
 
     // consensus address mapping
     mapping(bytes consensusAddress => address operator) public consensusToValidator; // consensus address => validator address
@@ -115,7 +113,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         if (
             params.validatorAddresses.length != params.consensusPublicKeys.length
                 || params.validatorAddresses.length != params.votingPowers.length
-                || params.validatorAddresses.length != params.voteAddresses.length
                 || params.validatorAddresses.length != params.validatorNetworkAddresses.length
                 || params.validatorAddresses.length != params.fullnodeNetworkAddresses.length
         ) revert ArrayLengthMismatch();
@@ -130,14 +127,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             address validator = params.validatorAddresses[i];
             bytes memory consensusPublicKey = params.consensusPublicKeys[i];
             uint256 votingPower = params.votingPowers[i];
-            bytes memory voteAddress = params.voteAddresses[i];
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
             // create basic validator info
             validatorInfos[validator] = ValidatorInfo({
                 consensusPublicKey: consensusPublicKey,
-                voteAddress: voteAddress,
                 commission: Commission({
                     rate: 0,
                     maxRate: 5000, // default max commission rate 50%
@@ -170,10 +165,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 consensusToValidator[consensusPublicKey] = validator;
             }
 
-            // Set vote address mapping
-            if (voteAddress.length > 0) {
-                voteAddressToValidator[voteAddress] = validator;
-            }
         }
     }
 
@@ -184,7 +175,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator = msg.sender;
 
         // validate params
-        ValidatorManagerLib.validateRegistrationParams(validator, params, validatorInfos, voteAddressToValidator, consensusToValidator, _monikerSet, operatorToValidator);
+        ValidatorManagerLib.validateRegistrationParams(validator, params, validatorInfos, consensusToValidator, _monikerSet, operatorToValidator);
 
         // check stake requirements
         uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
@@ -243,7 +234,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.consensusPublicKey = params.consensusPublicKey;
-        info.voteAddress = params.voteAddress;
         info.validatorNetworkAddresses = params.validatorNetworkAddresses;
         info.fullnodeNetworkAddresses = params.fullnodeNetworkAddresses;
     }
@@ -264,9 +254,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function _setupValidatorMappings(address validator, ValidatorRegistrationParams calldata params) internal {
         operatorToValidator[params.initialOperator] = validator;
 
-        if (params.voteAddress.length > 0) {
-            voteAddressToValidator[params.voteAddress] = validator;
-        }
 
         if (params.consensusPublicKey.length > 0) {
             consensusToValidator[params.consensusPublicKey] = validator;
@@ -505,44 +492,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         emit ValidatorInfoUpdated(validator, "commissionRate");
     }
 
-    /// @inheritdoc IValidatorManager
-    function updateVoteAddress(
-        address validator,
-        bytes calldata newVoteAddress,
-        bytes calldata blsProof
-    ) external validatorExists(validator) onlyValidatorOperator(validator) {
-        // validate new vote address
-        if (newVoteAddress.length > 0) {
-            // BLS proof verification
-            if (!ValidatorManagerLib.checkVoteAddress(validator, newVoteAddress, blsProof)) {
-                revert InvalidVoteAddress();
-            }
-
-            // check for duplicates from different validators
-            if (
-                voteAddressToValidator[newVoteAddress] != address(0)
-                    && voteAddressToValidator[newVoteAddress] != validator
-            ) {
-                revert DuplicateVoteAddress(newVoteAddress);
-            }
-        }
-
-        // clear old mappings
-        bytes memory oldVoteAddress = validatorInfos[validator].voteAddress;
-        if (oldVoteAddress.length > 0) {
-            delete voteAddressToValidator[oldVoteAddress];
-        }
-
-        // update validator info
-        validatorInfos[validator].voteAddress = newVoteAddress;
-
-        // update vote address mapping
-        if (newVoteAddress.length > 0) {
-            voteAddressToValidator[newVoteAddress] = validator;
-        }
-
-        emit ValidatorInfoUpdated(validator, "voteAddress");
-    }
 
     /// @inheritdoc IValidatorManager
     function updateValidatorNetworkAddresses(
@@ -810,12 +759,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return validatorInfos[validator].status;
     }
 
-    /// @inheritdoc IValidatorManager
-    function getValidatorVoteAddress(
-        address validator
-    ) external view returns (bytes memory) {
-        return validatorInfos[validator].voteAddress;
-    }
 
     /**
      * @dev Get validator index in current active validator set

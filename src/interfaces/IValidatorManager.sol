@@ -28,7 +28,6 @@ interface IValidatorManager is IReconfigurableModule {
     struct ValidatorInfo {
         // Basic information (from ValidatorManager)
         bytes consensusPublicKey;
-        bytes voteAddress; // BLS voting address
         Commission commission;
         string moniker;
         bool registered;
@@ -51,7 +50,6 @@ interface IValidatorManager is IReconfigurableModule {
     // Validator registration parameters
     struct ValidatorRegistrationParams {
         bytes consensusPublicKey;
-        bytes voteAddress; // BLS voting address
         bytes blsProof; // BLS proof
         Commission commission; // Changed from uint64 commissionRate to Commission struct
         string moniker;
@@ -139,7 +137,6 @@ interface IValidatorManager is IReconfigurableModule {
         address[] validatorAddresses;
         bytes[] consensusPublicKeys;
         uint256[] votingPowers;
-        bytes[] voteAddresses;
         bytes[] validatorNetworkAddresses;
         bytes[] fullnodeNetworkAddresses;
     }
@@ -200,13 +197,6 @@ interface IValidatorManager is IReconfigurableModule {
      */
     function updateCommissionRate(address validator, uint64 newCommissionRate) external;
 
-    /**
-     * @dev Update BLS voting address
-     * @param validator Validator address
-     * @param newVoteAddress New voting address
-     * @param blsProof BLS proof
-     */
-    function updateVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external;
 
     /**
      * @dev Update validator network addresses
@@ -315,12 +305,6 @@ interface IValidatorManager is IReconfigurableModule {
         address validator
     ) external view returns (ValidatorStatus);
 
-    /**
-     * @dev Get validator's voting address
-     */
-    function getValidatorVoteAddress(
-        address validator
-    ) external view returns (bytes memory);
 
     /**
      * @dev Get validator index in current active validator set

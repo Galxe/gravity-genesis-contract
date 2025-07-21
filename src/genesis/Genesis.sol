@@ -35,14 +35,13 @@ contract Genesis is System {
     function initialize(
         address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        uint256[] calldata votingPowers
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
         if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
-        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers, voteAddresses);
+        _initializeStake(validatorAddresses, consensusPublicKeys, votingPowers);
 
         // 2. Initialize epoch module
         _initializeEpoch();
@@ -70,8 +69,7 @@ contract Genesis is System {
     function _initializeStake(
         address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        uint256[] calldata votingPowers
     ) internal {
         // Initialize StakeConfig
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
@@ -84,7 +82,6 @@ contract Genesis is System {
             validatorAddresses: validatorAddresses,
             consensusPublicKeys: consensusPublicKeys,
             votingPowers: votingPowers,
-            voteAddresses: voteAddresses,
             validatorNetworkAddresses: emptyValidatorNetworkAddresses,
             fullnodeNetworkAddresses: emptyFullnodeNetworkAddresses
         });

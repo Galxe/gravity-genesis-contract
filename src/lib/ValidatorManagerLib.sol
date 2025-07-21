@@ -21,24 +21,24 @@ library ValidatorManagerLib {
     uint256 private constant BLS_SIG_LENGTH = 96;
 
     /**
-     * @dev Verify BLS vote address and proof
+     * @dev Verify BLS consensus public key and proof
      * @param operatorAddress Operator address
-     * @param voteAddress BLS vote address
+     * @param consensusPublicKey BLS consensus public key
      * @param blsProof BLS proof
      * @return Whether verification succeeded
      */
-    function checkVoteAddress(
+    function checkConsensusKey(
         address operatorAddress,
-        bytes calldata voteAddress,
+        bytes calldata consensusPublicKey,
         bytes calldata blsProof
     ) external view returns (bool) {
         // check lengths
-        if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
+        if (consensusPublicKey.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
         }
 
         // generate message hash
-        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, voteAddress, block.chainid));
+        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, consensusPublicKey, block.chainid));
         bytes memory msgBz = new bytes(32);
         assembly {
             mstore(add(msgBz, 32), msgHash)
@@ -46,7 +46,7 @@ library ValidatorManagerLib {
 
         // call precompiled contract to verify BLS signature
         // precompiled contract address is 0x66
-        bytes memory input = bytes.concat(msgBz, blsProof, voteAddress); // length: 32 + 96 + 48 = 176
+        bytes memory input = bytes.concat(msgBz, blsProof, consensusPublicKey); // length: 32 + 96 + 48 = 176
         bytes memory output = new bytes(1);
         assembly {
             let len := mload(input)
@@ -132,7 +132,6 @@ library ValidatorManagerLib {
         address validator,
         IValidatorManager.ValidatorRegistrationParams calldata params,
         mapping(address => IValidatorManager.ValidatorInfo) storage validatorInfos,
-        mapping(bytes => address) storage voteAddressToValidator,
         mapping(bytes => address) storage consensusToValidator,
         mapping(bytes32 => bool) storage monikerSet,
         mapping(address => address) storage operatorToValidator
@@ -141,10 +140,6 @@ library ValidatorManagerLib {
             revert IValidatorManager.ValidatorAlreadyExists(validator);
         }
 
-        // check BLS vote address
-        if (params.voteAddress.length > 0 && voteAddressToValidator[params.voteAddress] != address(0)) {
-            revert IValidatorManager.DuplicateVoteAddress(params.voteAddress);
-        }
 
         // check consensus address
         if (params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0)) {
@@ -171,7 +166,7 @@ library ValidatorManagerLib {
         }
 
         // check BLS proof
-        if (params.voteAddress.length > 0 && !_checkVoteAddressInternal(validator, params.voteAddress, params.blsProof)) {
+        if (params.consensusPublicKey.length > 0 && !_checkConsensusKeyInternal(validator, params.consensusPublicKey, params.blsProof)) {
             revert IValidatorManager.InvalidVoteAddress();
         }
 
@@ -221,20 +216,20 @@ library ValidatorManagerLib {
     }
 
     /**
-     * @dev Internal helper for checking vote address
+     * @dev Internal helper for checking consensus key
      */
-    function _checkVoteAddressInternal(
+    function _checkConsensusKeyInternal(
         address operatorAddress,
-        bytes calldata voteAddress,
+        bytes calldata consensusPublicKey,
         bytes calldata blsProof
     ) internal view returns (bool) {
         // check lengths
-        if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
+        if (consensusPublicKey.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
         }
 
         // generate message hash
-        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, voteAddress, block.chainid));
+        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, consensusPublicKey, block.chainid));
         bytes memory msgBz = new bytes(32);
         assembly {
             mstore(add(msgBz, 32), msgHash)
@@ -242,7 +237,7 @@ library ValidatorManagerLib {
 
         // call precompiled contract to verify BLS signature
         // precompiled contract address is 0x66
-        bytes memory input = bytes.concat(msgBz, blsProof, voteAddress); // length: 32 + 96 + 48 = 176
+        bytes memory input = bytes.concat(msgBz, blsProof, consensusPublicKey); // length: 32 + 96 + 48 = 176
         bytes memory output = new bytes(1);
         assembly {
             let len := mload(input)
