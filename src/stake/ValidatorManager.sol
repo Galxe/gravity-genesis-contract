@@ -109,17 +109,17 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
     /// @inheritdoc IValidatorManager
     function initialize(
-        address[] calldata validatorAddresses,
-        address[] calldata consensusAddresses,
-        address payable[] calldata feeAddresses,
-        uint256[] calldata votingPowers,
-        bytes[] calldata voteAddresses
+        InitializationParams calldata params
     ) external onlyGenesis {
         if (initialized) revert AlreadyInitialized();
 
         if (
-            validatorAddresses.length != consensusAddresses.length || validatorAddresses.length != feeAddresses.length
-                || validatorAddresses.length != votingPowers.length || validatorAddresses.length != voteAddresses.length
+            params.validatorAddresses.length != params.consensusAddresses.length
+                || params.validatorAddresses.length != params.feeAddresses.length
+                || params.validatorAddresses.length != params.votingPowers.length
+                || params.validatorAddresses.length != params.voteAddresses.length
+                || params.validatorAddresses.length != params.validatorNetworkAddresses.length
+                || params.validatorAddresses.length != params.fullnodeNetworkAddresses.length
         ) revert ArrayLengthMismatch();
 
         initialized = true;
@@ -128,12 +128,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         validatorSetData = ValidatorSetData({ totalVotingPower: 0, totalJoiningPower: 0 });
 
         // add initial validators
-        for (uint256 i = 0; i < validatorAddresses.length; i++) {
-            address validator = validatorAddresses[i];
-            address consensusAddress = consensusAddresses[i];
-            address payable feeAddress = feeAddresses[i];
-            uint256 votingPower = votingPowers[i];
-            bytes memory voteAddress = voteAddresses[i];
+        for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
+            address validator = params.validatorAddresses[i];
+            address consensusAddress = params.consensusAddresses[i];
+            address payable feeAddress = params.feeAddresses[i];
+            uint256 votingPower = params.votingPowers[i];
+            bytes memory voteAddress = params.voteAddresses[i];
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
@@ -154,8 +154,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 votingPower: votingPower,
                 validatorIndex: i,
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-                operator: validator // default self as operator
-             });
+                operator: validator, // default self as operator
+                validatorNetworkAddresses: params.validatorNetworkAddresses[i],
+                fullnodeNetworkAddresses: params.fullnodeNetworkAddresses[i]
+            });
 
             // Add to active validators set
             activeValidators.add(validator);
@@ -302,6 +304,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.consensusPublicKey = params.consensusPublicKey;
         info.feeAddress = params.feeAddress;
         info.voteAddress = params.voteAddress;
+        info.validatorNetworkAddresses = params.validatorNetworkAddresses;
+        info.fullnodeNetworkAddresses = params.fullnodeNetworkAddresses;
     }
 
     function _setValidatorStatus(address validator, address stakeCreditAddress) internal {
@@ -616,6 +620,24 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         emit ValidatorInfoUpdated(validator, "voteAddress");
+    }
+
+    /// @inheritdoc IValidatorManager
+    function updateValidatorNetworkAddresses(
+        address validator,
+        bytes calldata newAddresses
+    ) external validatorExists(validator) onlyValidatorOperator(validator) {
+        validatorInfos[validator].validatorNetworkAddresses = newAddresses;
+        emit ValidatorInfoUpdated(validator, "validatorNetworkAddresses");
+    }
+
+    /// @inheritdoc IValidatorManager
+    function updateFullnodeNetworkAddresses(
+        address validator,
+        bytes calldata newAddresses
+    ) external validatorExists(validator) onlyValidatorOperator(validator) {
+        validatorInfos[validator].fullnodeNetworkAddresses = newAddresses;
+        emit ValidatorInfoUpdated(validator, "fullnodeNetworkAddresses");
     }
 
     /**
@@ -945,7 +967,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         uint64 commissionRate,
         string memory moniker,
         address stakeCreditAddress,
-        ValidatorStatus status
+        ValidatorStatus status,
+        bytes memory validatorNetworkAddresses,
+        bytes memory fullnodeNetworkAddresses
     ) internal {
         validatorInfos[validator] = ValidatorInfo({
             consensusPublicKey: consensusPublicKey,
@@ -963,8 +987,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             votingPower: 0,
             validatorIndex: 0,
             updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
-            operator: validator // Default to self
-         });
+            operator: validator, // Default to self
+            validatorNetworkAddresses: validatorNetworkAddresses,
+            fullnodeNetworkAddresses: fullnodeNetworkAddresses
+        });
     }
 
     /**

@@ -52,9 +52,16 @@ contract DelegationTest is Test, TestConstants {
         vm.etch(GOV_TOKEN_ADDR, address(govTokenMock).code);
 
         // Initialize mocks that have initialize function
-        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).initialize(
-            new address[](0), new address[](0), new address payable[](0), new uint256[](0), new bytes[](0)
-        );
+        IValidatorManager.InitializationParams memory emptyParams = IValidatorManager.InitializationParams({
+            validatorAddresses: new address[](0),
+            consensusAddresses: new address[](0),
+            feeAddresses: new address payable[](0),
+            votingPowers: new uint256[](0),
+            voteAddresses: new bytes[](0),
+            validatorNetworkAddresses: new bytes[](0),
+            fullnodeNetworkAddresses: new bytes[](0)
+        });
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).initialize(emptyParams);
         StakeConfigMock(STAKE_CONFIG_ADDR).initialize();
         // GovTokenMock doesn't have initialize method
 
