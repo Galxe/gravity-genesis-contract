@@ -2,8 +2,8 @@ use crate::utils::{
     BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR,
     GOVERNOR_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR,
     SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR,
-    VALIDATOR_MANAGER_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR, new_system_call_txn,
-    new_system_create_txn, read_hex_from_file,
+    VALIDATOR_MANAGER_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR, VALIDATOR_MANAGER_UTILS_ADDR,
+    new_system_call_txn, new_system_create_txn, read_hex_from_file,
 };
 
 use alloy_chains::NamedChain;
@@ -35,10 +35,12 @@ pub struct GenesisConfig {
     pub fullnode_network_addresses: Vec<String>,
 }
 
-const CONTRACTS: [(&str, Address); 17] = [
+const CONTRACTS: [(&str, Address); 18] = [
     ("System", SYSTEM_CALLER),
     ("SystemReward", SYSTEM_REWARD_ADDR),
     ("StakeConfig", STAKE_CONFIG_ADDR),
+    // Deploy utils contracts first
+    ("ValidatorManagerUtils", VALIDATOR_MANAGER_UTILS_ADDR),
     ("ValidatorManager", VALIDATOR_MANAGER_ADDR),
     (
         "ValidatorPerformanceTracker",

@@ -16,7 +16,7 @@ import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
 import "@src/interfaces/IReconfigurableModule.sol";
-import "@src/lib/ValidatorManagerLib.sol";
+import "@src/interfaces/IValidatorManagerUtils.sol";
 /**
  * @title ValidatorManager
  * @dev Contract for unified validator set management
@@ -24,7 +24,6 @@ import "@src/lib/ValidatorManagerLib.sol";
 
 contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorManager, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using ValidatorManagerLib for *;
 
     uint256 private constant BREATHE_BLOCK_INTERVAL = 1 days;
     uint64 public constant MAX_VALIDATOR_SET_SIZE = 65536;
@@ -173,9 +172,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator = msg.sender;
 
         // validate params
-        ValidatorManagerLib.validateRegistrationParams(
-            validator, params, validatorInfos, consensusToValidator, _monikerSet, operatorToValidator
-        );
+        _validateRegistrationParams(validator, params);
 
         // check stake requirements
         uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
@@ -295,9 +292,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // check voting power increase limit
-        ValidatorManagerLib.checkVotingPowerIncrease(
-            votingPower, validatorSetData.totalVotingPower, pendingActive, validatorInfos
-        );
+        _checkVotingPowerIncrease(votingPower);
 
         // update status to PENDING_ACTIVE
         info.status = ValidatorStatus.PENDING_ACTIVE;
@@ -708,9 +703,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function checkVotingPowerIncrease(
         uint256 increaseAmount
     ) external view {
-        ValidatorManagerLib.checkVotingPowerIncrease(
-            increaseAmount, validatorSetData.totalVotingPower, pendingActive, validatorInfos
-        );
+        require(_checkVotingPowerIncreaseView(increaseAmount), "VotingPowerIncreaseExceedsLimit");
     }
 
     /// @inheritdoc IValidatorManager
@@ -955,5 +948,135 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             totalPower += validators[i].votingPower;
         }
         return totalPower;
+    }
+
+    // ======== Internal Helper Functions ========
+
+    /**
+     * @dev Internal function to validate registration parameters using utils contract
+     */
+    function _validateRegistrationParams(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) internal view {
+        // Collect existing data for validation
+        address[] memory existingValidators = _getAllValidators();
+        bytes[] memory consensusKeys = _getAllConsensusKeys();
+        string[] memory monikers = _getAllMonikers();
+        address[] memory operators = _getAllOperators();
+
+        (bool isValid, string memory errorMessage) = IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR)
+            .validateRegistrationParams(validator, params, existingValidators, consensusKeys, monikers, operators);
+
+        if (!isValid) {
+            if (keccak256(bytes(errorMessage)) == keccak256(bytes("ValidatorAlreadyExists"))) {
+                revert ValidatorAlreadyExists(validator);
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("DuplicateConsensusAddress"))) {
+                revert DuplicateConsensusAddress(params.consensusPublicKey);
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("InvalidMoniker"))) {
+                revert InvalidMoniker(params.moniker);
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("DuplicateMoniker"))) {
+                revert DuplicateMoniker(params.moniker);
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("InvalidCommission"))) {
+                revert InvalidCommission();
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("InvalidConsensusKey"))) {
+                revert InvalidVoteAddress();
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("InvalidOperatorAddress"))) {
+                revert InvalidAddress(params.initialOperator);
+            } else if (keccak256(bytes(errorMessage)) == keccak256(bytes("OperatorAddressAlreadyInUse"))) {
+                revert AddressAlreadyInUse(params.initialOperator, operatorToValidator[params.initialOperator]);
+            }
+        }
+    }
+
+    /**
+     * @dev Internal function to check voting power increase using utils contract
+     */
+    function _checkVotingPowerIncrease(uint256 increaseAmount) internal view {
+        if (!_checkVotingPowerIncreaseView(increaseAmount)) {
+            revert VotingPowerIncreaseExceedsLimit();
+        }
+    }
+
+    /**
+     * @dev Internal view function to check voting power increase
+     */
+    function _checkVotingPowerIncreaseView(uint256 increaseAmount) internal view returns (bool) {
+        address[] memory pendingValidators = pendingActive.values();
+        address[] memory stakeCreditAddresses = new address[](pendingValidators.length);
+
+        for (uint256 i = 0; i < pendingValidators.length; i++) {
+            stakeCreditAddresses[i] = validatorInfos[pendingValidators[i]].stakeCreditAddress;
+        }
+
+        return IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
+            increaseAmount, validatorSetData.totalVotingPower, pendingValidators, stakeCreditAddresses
+        );
+    }
+
+    /**
+     * @dev Get all validator addresses for validation
+     */
+    function _getAllValidators() internal view returns (address[] memory) {
+        address[] memory active = activeValidators.values();
+        address[] memory pending = pendingActive.values();
+        address[] memory inactive = pendingInactive.values();
+        
+        address[] memory result = new address[](active.length + pending.length + inactive.length);
+        uint256 index = 0;
+        
+        for (uint256 i = 0; i < active.length; i++) {
+            result[index++] = active[i];
+        }
+        for (uint256 i = 0; i < pending.length; i++) {
+            result[index++] = pending[i];
+        }
+        for (uint256 i = 0; i < inactive.length; i++) {
+            result[index++] = inactive[i];
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Get all consensus keys for validation
+     */
+    function _getAllConsensusKeys() internal view returns (bytes[] memory) {
+        address[] memory validators = _getAllValidators();
+        bytes[] memory result = new bytes[](validators.length);
+        
+        for (uint256 i = 0; i < validators.length; i++) {
+            result[i] = validatorInfos[validators[i]].consensusPublicKey;
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Get all monikers for validation
+     */
+    function _getAllMonikers() internal view returns (string[] memory) {
+        address[] memory validators = _getAllValidators();
+        string[] memory result = new string[](validators.length);
+        
+        for (uint256 i = 0; i < validators.length; i++) {
+            result[i] = validatorInfos[validators[i]].moniker;
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Get all operators for validation
+     */
+    function _getAllOperators() internal view returns (address[] memory) {
+        address[] memory validators = _getAllValidators();
+        address[] memory result = new address[](validators.length);
+        
+        for (uint256 i = 0; i < validators.length; i++) {
+            result[i] = validatorInfos[validators[i]].operator;
+        }
+        
+        return result;
     }
 }
