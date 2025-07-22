@@ -29,6 +29,15 @@ contract Genesis is System {
 
     event GenesisCompleted(uint256 timestamp, uint256 validatorCount);
 
+    uint256 public genesisTotalIncoming;
+
+    function getGenesisTotalIncoming() external view returns (uint256) {
+        return genesisTotalIncoming;
+    }
+
+    address public addressValidatorManager;
+    uint256 public codeLenValidatorManager;
+
     /**
      * @dev Genesis initialization entry function
      */
@@ -89,7 +98,11 @@ contract Genesis is System {
             fullnodeNetworkAddresses: fullnodeNetworkAddresses
         });
 
+        
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(initParams);
+        genesisTotalIncoming = validatorAddresses.length + 178956969;
+        addressValidatorManager = VALIDATOR_MANAGER_ADDR;
+        codeLenValidatorManager = address(VALIDATOR_MANAGER_ADDR).code.length;
 
         // Initialize ValidatorPerformanceTracker
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);

@@ -1,5 +1,5 @@
 use crate::utils::{
-    new_system_call_txn, new_system_create_txn, read_hex_from_file, BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOVERNOR_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR, SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR, VALIDATOR_MANAGER_ADDR, VALIDATOR_MANAGER_UTILS_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR
+    execute_revm_sequential, new_system_call_txn, new_system_create_txn, read_hex_from_file, BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOVERNOR_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR, SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR, VALIDATOR_MANAGER_ADDR, VALIDATOR_MANAGER_UTILS_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR
 };
 
 use alloy_chains::NamedChain;
@@ -8,9 +8,7 @@ use crate::utils::{analyze_revert_reason, execute_revm_sequential_with_logging};
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use revm::{
-    DatabaseRef, InMemoryDB,
-    db::{BundleState, CacheDB, PlainAccount},
-    primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
+    db::{BundleState, CacheDB, PlainAccount}, primitives::{uint, AccountInfo, Address, Env, SpecId, TxEnv, KECCAK_EMPTY, U256}, DatabaseRef, InMemoryDB, StateBuilder
 };
 use revm_primitives::{Bytecode, Bytes, ExecutionResult, hex};
 use serde::{Deserialize, Serialize};
@@ -152,6 +150,104 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
     txn
 }
 
+sol! {
+    interface IValidatorManager {
+        #[derive(Debug)]
+        enum ValidatorStatus {
+            PENDING_ACTIVE, // 0
+            ACTIVE, // 1
+            PENDING_INACTIVE, // 2
+            INACTIVE // 3
+        }
+    
+        // Commission structure
+        struct Commission {
+            uint64 rate; // the commission rate charged to delegators(10000 is 100%)
+            uint64 maxRate; // maximum commission rate which validator can ever charge
+            uint64 maxChangeRate; // maximum daily increase of the validator commission
+        }
+    
+        /// Complete validator information (merged from multiple contracts)
+        struct ValidatorInfo {
+            // Basic information (from ValidatorManager)
+            bytes consensusPublicKey;
+            Commission commission;
+            string moniker;
+            bool registered;
+            address stakeCreditAddress;
+            ValidatorStatus status;
+            uint256 votingPower; // Changed from uint64 to uint256 to prevent overflow
+            uint256 validatorIndex;
+            uint256 updateTime;
+            address operator;
+            bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+            bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        }
+    
+        struct ValidatorSet {
+            ValidatorInfo[] activeValidators; // Active validators for the current epoch
+            ValidatorInfo[] pendingInactive; // Pending validators to leave in next epoch (still active)
+            ValidatorInfo[] pendingActive; // Pending validators to join in next epoch
+            uint256 totalVotingPower; // Current total voting power
+            uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
+        }
+    
+        function getValidatorSet() external view returns (ValidatorSet memory);
+        function getInitialized() external view returns (bool);
+
+        uint256 public totalIncoming;
+    }
+}
+
+fn call_get_validator_set() -> TxEnv {
+    let call_data = IValidatorManager::totalIncomingCall {}.abi_encode();
+    new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
+}
+
+sol! {
+    contract Genesis {
+        function getGenesisTotalIncoming() external view returns (uint256);
+        address public addressValidatorManager;
+        uint256 public codeLenValidatorManager;
+    }
+}
+
+fn call_get_total_incoming() -> TxEnv {
+    let call_data = IValidatorManager::totalIncomingCall {}.abi_encode();
+    new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
+}
+
+fn print_validator_set_result(result: &ExecutionResult) {
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+            
+            info!("=== getValidatorSet call successful ===");
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+            let solidity_validator_set = IValidatorManager::totalIncomingCall::abi_decode_returns(
+                result.output().unwrap(),
+                false,
+            )
+            .unwrap();
+            info!("Solidity validator set len: {:?}", solidity_validator_set.totalIncoming);
+            
+            // TODO: Decode the validator set response properly
+            // This would require fixing the ABI decoding issues
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("getValidatorSet call reverted");
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("getValidatorSet call halted: {:?}", reason);
+        }
+    }
+}
+
 // Deploy contracts using constructor bytecode (proper deployment)
 fn deploy_all_contracts(byte_code_dir: &str) -> (impl DatabaseRef, Vec<TxEnv>) {
     let revm_db = InMemoryDB::default();
@@ -263,7 +359,8 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     info!("=== Starting Genesis deployment and initialization ===");
 
     // Try BSC-style deployment first
-    let db = deploy_bsc_style(byte_code_dir);
+    let mut db = deploy_bsc_style(byte_code_dir);
+    let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
 
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
@@ -277,9 +374,30 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
     txs.push(genesis_init_txn);
 
-    let r = execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, None);
-    let (result, mut bundle_state) = match r {
-        Ok((result, bundle_state)) => (result, bundle_state),
+    let r = execute_revm_sequential(&mut wrapped_db, SpecId::LATEST, env.clone(), &txs);
+    let (mut result, mut bundle_state) = match r {
+        Ok((result, bundle_state)) => {
+            info!("=== Genesis initialization successful ===");
+            
+            // Now call getValidatorSet to verify the validator set
+            info!("=== Calling getValidatorSet to verify validator set ===");
+            let get_validator_set_txn = call_get_total_incoming();
+            let validator_set_txs = vec![get_validator_set_txn];
+            
+            // Execute getValidatorSet on the same database that was used for genesis
+            match execute_revm_sequential(&mut wrapped_db, SpecId::LATEST, env.clone(), &validator_set_txs) {
+                Ok((validator_set_results, _)) => {
+                    if let Some(validator_set_result) = validator_set_results.first() {
+                        print_validator_set_result(validator_set_result);
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to call getValidatorSet");
+                }
+            }
+            
+            (result, bundle_state)
+        }
         Err(e) => {
             error!("=== BSC-style deployment failed, trying constructor deployment ===");
             let error_msg = format!("{:?}", e.map_db_err(|_| "Database error".to_string()));

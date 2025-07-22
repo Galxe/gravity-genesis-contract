@@ -1,11 +1,7 @@
 use alloy_primitives::address;
 
 use revm::{
-    DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
-    db::{BundleState, states::bundle_state::BundleRetention},
-    inspector_handle_register,
-    inspectors::TracerEip3155,
-    primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
+    db::{states::bundle_state::BundleRetention, BundleState, State}, inspector_handle_register, inspectors::TracerEip3155, primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256}, Database, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder
 };
 use revm_primitives::{Bytes, TxKind, hex};
 use std::u64;
@@ -124,6 +120,57 @@ where
         *evm.tx_mut() = tx.clone();
 
         let result_and_state = evm.transact()?;
+        evm.db_mut().commit(result_and_state.state);
+
+        info!(
+            "Transaction result: {}",
+            analyze_revert_reason(&result_and_state.result)
+        );
+        results.push(result_and_state.result);
+        info!("=== Transaction {} completed ===", i + 1);
+    }
+    evm.db_mut().merge_transitions(BundleRetention::Reverts);
+
+    Ok((results, evm.db_mut().take_bundle()))
+}
+
+/// Simulate the sequential execution of transactions with detailed logging
+pub(crate) fn execute_revm_sequential<DB>(
+    db: &mut State<DB>,
+    spec_id: SpecId,
+    env: Env,
+    txs: &[TxEnv],
+) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
+where
+    DB: Database,
+{
+    let mut evm = EvmBuilder::default()
+        .with_db(db)
+        .with_spec_id(spec_id)
+        .with_env(Box::new(env))
+        .build();
+
+    let mut evm = evm
+        .modify()
+        .reset_handler_with_external_context(TracerEip3155::new(Box::new(std::io::stdout())))
+        .append_handler_register(inspector_handle_register)
+        .build();
+
+    let mut results = Vec::with_capacity(txs.len());
+    for (i, tx) in txs.iter().enumerate() {
+        info!("=== Executing transaction {} ===", i + 1);
+        info!("Transaction details:");
+        info!("  Caller: {:?}", tx.caller);
+        info!("  To: {:?}", tx.transact_to);
+        info!("  Data length: {}", tx.data.len());
+        if tx.data.len() >= 4 {
+            info!("  Function selector: 0x{}", hex::encode(&tx.data[0..4]));
+        }
+
+        *evm.tx_mut() = tx.clone();
+
+        let result_and_state = evm.transact()?;
+        info!("transaction evm state {:?}", result_and_state.state);
         evm.db_mut().commit(result_and_state.state);
 
         info!(

@@ -52,12 +52,16 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     mapping(address operator => address validator) public operatorToValidator; // operator => validator
 
     // initialized flag
-    bool private initialized;
+    bool public initialized;
 
     // mapping for tracking validator accumulated rewards
     uint256 public totalIncoming;
 
     /*----------------- Modifiers -----------------*/
+
+    function getInitialized() external view returns (bool) {
+        return initialized;
+    }
 
     modifier validatorExists(
         address validator
@@ -106,8 +110,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function initialize(
         InitializationParams calldata params
     ) external onlyGenesis {
+        totalIncoming = address(this).code.length;
         if (initialized) revert AlreadyInitialized();
-
+        // totalIncoming = address(this).code.length; 没进来
         if (
             params.validatorAddresses.length != params.consensusPublicKeys.length
                 || params.validatorAddresses.length != params.votingPowers.length
