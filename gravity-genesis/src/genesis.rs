@@ -1,4 +1,10 @@
+use alloy_sol_macro::sol;
+use alloy_sol_types::SolCall;
+use revm_primitives::{Address, Bytes, ExecutionResult, TxEnv, U256, hex};
 use serde::{Deserialize, Serialize};
+use tracing::{error, info};
+
+use crate::utils::{VALIDATOR_MANAGER_ADDR, new_system_call_txn};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenesisConfig {
@@ -12,4 +18,344 @@ pub struct GenesisConfig {
     pub validator_network_addresses: Vec<String>,
     #[serde(rename = "fullnodeNetworkAddresses")]
     pub fullnode_network_addresses: Vec<String>,
+}
+
+pub struct GenesisInitParam {
+    pub validator_addresses: Vec<Address>,
+    pub consensus_public_keys: Vec<Bytes>,
+    pub voting_powers: Vec<U256>,
+    pub validator_network_addresses: Vec<Bytes>,
+    pub fullnode_network_addresses: Vec<Bytes>,
+}
+
+pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
+    // Convert string addresses to Address type
+    let validator_addresses: Vec<Address> = config
+        .validator_addresses
+        .iter()
+        .map(|addr| addr.parse::<Address>().expect("Invalid validator address"))
+        .collect();
+    info!("validator addresses: {:?}", validator_addresses);
+
+    // Convert consensus public keys from hex strings to bytes
+    let consensus_public_keys: Vec<Bytes> = config
+        .consensus_public_keys
+        .iter()
+        .map(|key| {
+            let key_str = key.strip_prefix("0x").unwrap_or(key);
+            hex::decode(key_str)
+                .expect("Invalid consensus public key")
+                .into()
+        })
+        .collect();
+
+    let voting_powers: Vec<U256> = config
+        .voting_powers
+        .iter()
+        .map(|power| power.parse::<U256>().expect("Invalid voting power"))
+        .collect();
+
+    // Convert validator network addresses from hex strings to bytes
+    let validator_network_addresses: Vec<Bytes> = config
+        .validator_network_addresses
+        .iter()
+        .map(|addr| {
+            if addr.is_empty() {
+                Bytes::new()
+            } else {
+                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                // hex::decode(addr_str).expect("Invalid validator network address").into()
+                Bytes::from(addr.as_bytes().to_vec())
+            }
+        })
+        .collect();
+
+    // Convert fullnode network addresses from hex strings to bytes
+    let fullnode_network_addresses: Vec<Bytes> = config
+        .fullnode_network_addresses
+        .iter()
+        .map(|addr| {
+            if addr.is_empty() {
+                Bytes::new()
+            } else {
+                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
+                // hex::decode(addr_str).expect("Invalid validator network address").into()
+                Bytes::from(addr.as_bytes().to_vec())
+            }
+        })
+        .collect();
+
+    GenesisInitParam {
+        validator_addresses,
+        consensus_public_keys,
+        voting_powers,
+        validator_network_addresses,
+        fullnode_network_addresses,
+    }
+}
+
+pub fn validate_genesis_data_consistency(
+    config: &GenesisConfig,
+    active_validators: &[IValidatorManager::ValidatorInfo],
+) {
+    info!("=== Validating Genesis Initial Data Consistency with ValidatorSet Return Data ===");
+
+    let GenesisInitParam {
+        validator_addresses,
+        consensus_public_keys,
+        voting_powers,
+        validator_network_addresses,
+        fullnode_network_addresses,
+    } = parse_genesis_config(config);
+    let expected_count = validator_addresses.len();
+    let actual_count = active_validators.len();
+
+    info!("Expected validator count: {}", expected_count);
+    info!("Actual validator count: {}", actual_count);
+
+    if expected_count != actual_count {
+        error!(
+            "❌ Validator count mismatch! Expected: {}, Actual: {}",
+            expected_count, actual_count
+        );
+        return;
+    }
+
+    let mut all_match = true;
+
+    for (i, validator) in active_validators.iter().enumerate() {
+        info!("--- Validating Validator {} ---", i + 1);
+
+        // Validate operator address
+        let expected_operator = validator_addresses[i];
+        let actual_operator = validator.operator;
+
+        if expected_operator == actual_operator {
+            info!("✅ Operator address matches: {:?}", actual_operator);
+        } else {
+            error!(
+                "❌ Operator address mismatch! Expected: {:?}, Actual: {:?}",
+                expected_operator, actual_operator
+            );
+            all_match = false;
+        }
+
+        // Validate consensus public key
+        let expected_consensus_key = consensus_public_keys[i].clone();
+        let actual_consensus_key = validator.consensusPublicKey.to_vec();
+
+        if expected_consensus_key == actual_consensus_key {
+            info!(
+                "✅ Consensus public key matches (length: {} bytes)",
+                expected_consensus_key.len()
+            );
+        } else {
+            error!("❌ Consensus public key mismatch!");
+            error!("Expected: 0x{}", hex::encode(&expected_consensus_key));
+            error!("Actual: 0x{}", hex::encode(&actual_consensus_key));
+            all_match = false;
+        }
+
+        // Validate voting power
+        let expected_voting_power = voting_powers[i];
+        let actual_voting_power = validator.votingPower;
+
+        if expected_voting_power == actual_voting_power {
+            info!("✅ Voting power matches: {}", actual_voting_power);
+        } else {
+            error!(
+                "❌ Voting power mismatch! Expected: {}, Actual: {}",
+                expected_voting_power, actual_voting_power
+            );
+            all_match = false;
+        }
+
+        // Validate validator network addresses
+        let expected_validator_network_addr = validator_network_addresses[i].clone();
+        let actual_validator_network_addr = validator.validatorNetworkAddresses.to_vec();
+
+        if expected_validator_network_addr == actual_validator_network_addr {
+            info!(
+                "✅ Validator network addresses match (length: {} bytes)",
+                expected_validator_network_addr.len()
+            );
+        } else {
+            error!("❌ Validator network addresses mismatch!");
+            error!(
+                "Expected: {:?}",
+                String::from_utf8_lossy(&expected_validator_network_addr)
+            );
+            error!(
+                "Actual: {:?}",
+                String::from_utf8_lossy(&actual_validator_network_addr)
+            );
+            all_match = false;
+        }
+
+        // Validate fullnode network addresses
+        let expected_fullnode_network_addr = fullnode_network_addresses[i].clone();
+        let actual_fullnode_network_addr = validator.fullnodeNetworkAddresses.to_vec();
+
+        if expected_fullnode_network_addr == actual_fullnode_network_addr {
+            info!(
+                "✅ Fullnode network addresses match (length: {} bytes)",
+                expected_fullnode_network_addr.len()
+            );
+        } else {
+            error!("❌ Fullnode network addresses mismatch!");
+            error!(
+                "Expected: {:?}",
+                String::from_utf8_lossy(&expected_fullnode_network_addr)
+            );
+            error!(
+                "Actual: {:?}",
+                String::from_utf8_lossy(&actual_fullnode_network_addr)
+            );
+            all_match = false;
+        }
+
+        info!(""); // Empty line separator
+    }
+
+    if all_match {
+        info!(
+            "🎉 All validator data validation passed! Genesis initialization data is completely consistent with ValidatorSet return data."
+        );
+    } else {
+        error!("⚠️  Data inconsistency found, please check the error messages above.");
+    }
+}
+
+pub fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> TxEnv {
+    let param = parse_genesis_config(config);
+
+    info!("=== Genesis Initialize Parameters ===");
+    info!("Genesis address: {:?}", genesis_address);
+    info!("Validator addresses: {:?}", param.validator_addresses);
+    info!(
+        "Consensus public keys count: {}",
+        param.consensus_public_keys.len()
+    );
+    info!("Voting powers: {:?}", param.voting_powers);
+    info!(
+        "Validator network addresses count: {}",
+        param.validator_network_addresses.len()
+    );
+    info!(
+        "Fullnode network addresses count: {}",
+        param.fullnode_network_addresses.len()
+    );
+
+    sol! {
+        contract Genesis {
+            function initialize(
+                address[] calldata validatorAddresses,
+                bytes[] calldata consensusPublicKeys,
+                uint256[] calldata votingPowers,
+                bytes[] calldata validatorNetworkAddresses,
+                bytes[] calldata fullnodeNetworkAddresses
+            ) external;
+        }
+    }
+
+    let call_data = Genesis::initializeCall {
+        validatorAddresses: param.validator_addresses,
+        consensusPublicKeys: param.consensus_public_keys,
+        votingPowers: param.voting_powers,
+        validatorNetworkAddresses: param.validator_network_addresses,
+        fullnodeNetworkAddresses: param.fullnode_network_addresses,
+    }
+    .abi_encode();
+
+    info!("Call data length: {}", call_data.len());
+    info!("Call data: 0x{}", hex::encode(&call_data));
+
+    let txn = new_system_call_txn(genesis_address, call_data.into());
+    txn
+}
+
+sol! {
+    interface IValidatorManager {
+        #[derive(Debug)]
+        enum ValidatorStatus {
+            PENDING_ACTIVE, // 0
+            ACTIVE, // 1
+            PENDING_INACTIVE, // 2
+            INACTIVE // 3
+        }
+
+        // Commission structure
+        struct Commission {
+            uint64 rate; // the commission rate charged to delegators(10000 is 100%)
+            uint64 maxRate; // maximum commission rate which validator can ever charge
+            uint64 maxChangeRate; // maximum daily increase of the validator commission
+        }
+
+        /// Complete validator information (merged from multiple contracts)
+        struct ValidatorInfo {
+            // Basic information (from ValidatorManager)
+            bytes consensusPublicKey;
+            Commission commission;
+            string moniker;
+            bool registered;
+            address stakeCreditAddress;
+            ValidatorStatus status;
+            uint256 votingPower; // Changed from uint64 to uint256 to prevent overflow
+            uint256 validatorIndex;
+            uint256 updateTime;
+            address operator;
+            bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+            bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        }
+
+        struct ValidatorSet {
+            ValidatorInfo[] activeValidators; // Active validators for the current epoch
+            ValidatorInfo[] pendingInactive; // Pending validators to leave in next epoch (still active)
+            ValidatorInfo[] pendingActive; // Pending validators to join in next epoch
+            uint256 totalVotingPower; // Current total voting power
+            uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
+        }
+
+        function getValidatorSet() external view returns (ValidatorSet memory);
+    }
+}
+
+pub fn call_get_validator_set() -> TxEnv {
+    let call_data = IValidatorManager::getValidatorSetCall {}.abi_encode();
+    new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
+}
+
+pub fn print_validator_set_result(result: &ExecutionResult, config: &GenesisConfig) {
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+
+            info!("=== getValidatorSet call successful ===");
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+
+            let solidity_validator_set =
+                IValidatorManager::getValidatorSetCall::abi_decode_returns(
+                    result.output().unwrap(),
+                    false,
+                )
+                .unwrap();
+
+            let active_validators = &solidity_validator_set._0.activeValidators;
+            info!("Active validators count: {}", active_validators.len());
+
+            // Validate consistency between initial data and returned data
+            validate_genesis_data_consistency(config, active_validators);
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("getValidatorSet call reverted");
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("getValidatorSet call halted: {:?}", reason);
+        }
+    }
 }

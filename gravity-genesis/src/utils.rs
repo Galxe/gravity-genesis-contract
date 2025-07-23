@@ -3,15 +3,15 @@ use alloy_primitives::address;
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolEvent;
 use revm::{
-    Database, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
+    Database, DatabaseCommit, EvmBuilder,
     db::{BundleState, State, states::bundle_state::BundleRetention},
     inspector_handle_register,
     inspectors::TracerEip3155,
     primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
-use revm_primitives::{hex, uint, AccountInfo, Bytes, TxKind, KECCAK_EMPTY};
-use std::{collections::BTreeMap, u64};
-use tracing::{info, info_span};
+use revm_primitives::{AccountInfo, Bytes, KECCAK_EMPTY, TxKind, hex, uint};
+use std::u64;
+use tracing::info;
 
 pub const DEAD_ADDRESS: Address = address!("000000000000000000000000000000000000dEaD");
 pub const GENESIS_ADDR: Address = address!("0000000000000000000000000000000000001008");
@@ -159,16 +159,7 @@ where
         *evm.tx_mut() = tx.clone();
 
         let result_and_state = evm.transact()?;
-        info!(
-            "transaction evm state change {:?}",
-            result_and_state
-                .state
-                .get(&VALIDATOR_MANAGER_ADDR)
-                .unwrap()
-                .changed_storage_slots()
-                .collect::<BTreeMap<_, _>>()
-        );
-        // info!("transaction evm state {:?}", result_and_state.state);
+        info!("transaction evm state {:?}", result_and_state.state);
         evm.db_mut().commit(result_and_state.state);
 
         info!(
