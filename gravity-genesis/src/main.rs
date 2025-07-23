@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
-use gravity_genesis::execute::{self, GenesisConfig};
-use tracing::{info, Level};
-use std::fs;
+use gravity_genesis::{execute, genesis::GenesisConfig};
 use serde_json;
+use std::fs;
+use tracing::{Level, info};
 
 // Custom guard to ensure proper log flushing
 struct LogGuard {
@@ -68,8 +68,12 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     // Initialize logging
-    let level = if args.debug { Level::DEBUG } else { Level::INFO };
-    
+    let level = if args.debug {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
+
     // Set up logging and create log guard for proper cleanup
     let log_guard = if let Some(log_file_path) = &args.log_file {
         // Create log file directory if it doesn't exist
@@ -78,24 +82,22 @@ async fn main() -> Result<()> {
                 fs::create_dir_all(parent)?;
             }
         }
-        
+
         // Set up logging to file
         let file_appender = tracing_appender::rolling::never("", log_file_path);
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
-        
+
         tracing_subscriber::fmt()
             .with_max_level(level)
             .with_writer(non_blocking)
             .with_ansi(false)
             .init();
-            
+
         info!("Logging to file: {}", log_file_path);
         LogGuard::new(Some(guard))
     } else {
         // Console-only logging
-        tracing_subscriber::fmt()
-            .with_max_level(level)
-            .init();
+        tracing_subscriber::fmt().with_max_level(level).init();
         LogGuard::new(None)
     };
 
@@ -108,7 +110,7 @@ async fn main() -> Result<()> {
             // Log the panic information
             tracing::error!("PANIC: {}", panic_info);
             tracing::error!("Flushing logs before panic exit...");
-            
+
             // Give time for the background thread to write logs
             std::thread::sleep(std::time::Duration::from_millis(1200));
             eprintln!("Log flush attempt completed");
@@ -120,11 +122,11 @@ async fn main() -> Result<()> {
 
     // Run the main logic
     let result = run_main_logic(&args).await;
-    
+
     // Ensure logs are flushed before exiting
     info!("Main execution completed");
     log_guard.flush_and_wait();
-    
+
     result
 }
 
@@ -141,8 +143,12 @@ async fn run_main_logic(args: &Args) -> Result<()> {
         info!("Output directory: {}", output_dir);
     }
 
-    execute::genesis_generate(&args.byte_code_dir, &args.output.as_ref().unwrap_or(&"output".to_string()), config);
+    execute::genesis_generate(
+        &args.byte_code_dir,
+        &args.output.as_ref().unwrap(),
+        config,
+    );
 
     info!("Gravity Genesis Binary completed successfully");
     Ok(())
-} 
+}

@@ -1,11 +1,17 @@
 use alloy_primitives::address;
 
+use alloy_sol_macro::sol;
+use alloy_sol_types::SolEvent;
 use revm::{
-    db::{states::bundle_state::BundleRetention, BundleState, State}, inspector_handle_register, inspectors::TracerEip3155, primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256}, Database, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder
+    Database, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
+    db::{BundleState, State, states::bundle_state::BundleRetention},
+    inspector_handle_register,
+    inspectors::TracerEip3155,
+    primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
-use revm_primitives::{Bytes, TxKind, hex};
-use std::u64;
-use tracing::info;
+use revm_primitives::{hex, uint, AccountInfo, Bytes, TxKind, KECCAK_EMPTY};
+use std::{collections::BTreeMap, u64};
+use tracing::{info, info_span};
 
 pub const DEAD_ADDRESS: Address = address!("000000000000000000000000000000000000dEaD");
 pub const GENESIS_ADDR: Address = address!("0000000000000000000000000000000000001008");
@@ -34,7 +40,43 @@ pub const TIMELOCK_ADDR: Address = address!("00000000000000000000000000000000000
 // this address is used to call evm. It's not used for gravity pre compile contract
 pub const SYSTEM_ADDRESS: Address = address!("0000000000000000000000000000000000000000");
 
-pub fn analyze_revert_reason(result: &ExecutionResult) -> String {
+pub const CONTRACTS: [(&str, Address); 18] = [
+    ("System", SYSTEM_CALLER),
+    ("SystemReward", SYSTEM_REWARD_ADDR),
+    ("StakeConfig", STAKE_CONFIG_ADDR),
+    ("ValidatorManagerUtils", VALIDATOR_MANAGER_UTILS_ADDR),
+    ("ValidatorManager", VALIDATOR_MANAGER_ADDR),
+    (
+        "ValidatorPerformanceTracker",
+        VALIDATOR_PERFORMANCE_TRACKER_ADDR,
+    ),
+    ("EpochManager", EPOCH_MANAGER_ADDR),
+    ("GovToken", GOV_TOKEN_ADDR),
+    ("Timelock", TIMELOCK_ADDR),
+    ("GravityGovernor", GOVERNOR_ADDR),
+    ("JWKManager", JWK_MANAGER_ADDR),
+    ("KeylessAccount", KEYLESS_ACCOUNT_ADDR),
+    ("Block", BLOCK_ADDR),
+    ("Timestamp", TIMESTAMP_ADDR),
+    ("Genesis", GENESIS_ADDR),
+    ("StakeCredit", STAKE_CREDIT_ADDR),
+    ("Delegation", DELEGATION_ADDR),
+    ("GovHub", GOV_HUB_ADDR),
+];
+
+pub const SYSTEM_ACCOUNT_INFO: AccountInfo = AccountInfo {
+    balance: uint!(1_000_000_000_000_000_000_U256),
+    nonce: 1,
+    code_hash: KECCAK_EMPTY,
+    code: None,
+};
+
+sol! {
+    // event Log(string message);
+    event Log(string message, uint256 value);
+}
+
+pub fn analyze_txn_result(result: &ExecutionResult) -> String {
     match result {
         ExecutionResult::Revert { gas_used, output } => {
             let mut reason = format!("Revert with gas used: {}", gas_used);
@@ -61,8 +103,17 @@ pub fn analyze_revert_reason(result: &ExecutionResult) -> String {
 
             reason
         }
-        ExecutionResult::Success { gas_used, .. } => {
-            format!("Success with gas used: {}", gas_used)
+        ExecutionResult::Success { gas_used, logs, .. } => {
+            let mut log_msg = String::new();
+            for log in logs {
+                if let Ok(parsed) = Log::decode_log(log, true) {
+                    log_msg.push_str(&format!(
+                        "txn event Log: {:?}, {:?}.",
+                        parsed.message, parsed.value
+                    ));
+                }
+            }
+            format!("Success with gas used: {}, {}", gas_used, log_msg)
         }
         ExecutionResult::Halt { reason, gas_used } => {
             format!("Halt: {:?} with gas used: {}", reason, gas_used)
@@ -71,68 +122,6 @@ pub fn analyze_revert_reason(result: &ExecutionResult) -> String {
 }
 
 pub const MINER_ADDRESS: usize = 999;
-
-/// Simulate the sequential execution of transactions with detailed logging
-pub(crate) fn execute_revm_sequential_with_logging<DB>(
-    db: DB,
-    spec_id: SpecId,
-    env: Env,
-    txs: &[TxEnv],
-    pre_bundle_state: Option<BundleState>,
-) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
-where
-    DB: DatabaseRef,
-{
-    let db = if pre_bundle_state.is_some() {
-        StateBuilder::new()
-            .with_bundle_prestate(pre_bundle_state.unwrap())
-            .with_database_ref(db)
-            .build()
-    } else {
-        StateBuilder::new()
-            .with_bundle_update()
-            .with_database_ref(db)
-            .build()
-    };
-    let mut evm = EvmBuilder::default()
-        .with_db(db)
-        .with_spec_id(spec_id)
-        .with_env(Box::new(env))
-        .build();
-
-    let mut evm = evm
-        .modify()
-        .reset_handler_with_external_context(TracerEip3155::new(Box::new(std::io::stdout())))
-        .append_handler_register(inspector_handle_register)
-        .build();
-
-    let mut results = Vec::with_capacity(txs.len());
-    for (i, tx) in txs.iter().enumerate() {
-        info!("=== Executing transaction {} ===", i + 1);
-        info!("Transaction details:");
-        info!("  Caller: {:?}", tx.caller);
-        info!("  To: {:?}", tx.transact_to);
-        info!("  Data length: {}", tx.data.len());
-        if tx.data.len() >= 4 {
-            info!("  Function selector: 0x{}", hex::encode(&tx.data[0..4]));
-        }
-
-        *evm.tx_mut() = tx.clone();
-
-        let result_and_state = evm.transact()?;
-        evm.db_mut().commit(result_and_state.state);
-
-        info!(
-            "Transaction result: {}",
-            analyze_revert_reason(&result_and_state.result)
-        );
-        results.push(result_and_state.result);
-        info!("=== Transaction {} completed ===", i + 1);
-    }
-    evm.db_mut().merge_transitions(BundleRetention::Reverts);
-
-    Ok((results, evm.db_mut().take_bundle()))
-}
 
 /// Simulate the sequential execution of transactions with detailed logging
 pub(crate) fn execute_revm_sequential<DB>(
@@ -170,12 +159,21 @@ where
         *evm.tx_mut() = tx.clone();
 
         let result_and_state = evm.transact()?;
-        info!("transaction evm state {:?}", result_and_state.state);
+        info!(
+            "transaction evm state change {:?}",
+            result_and_state
+                .state
+                .get(&VALIDATOR_MANAGER_ADDR)
+                .unwrap()
+                .changed_storage_slots()
+                .collect::<BTreeMap<_, _>>()
+        );
+        // info!("transaction evm state {:?}", result_and_state.state);
         evm.db_mut().commit(result_and_state.state);
 
         info!(
             "Transaction result: {}",
-            analyze_revert_reason(&result_and_state.result)
+            analyze_txn_result(&result_and_state.result)
         );
         results.push(result_and_state.result);
         info!("=== Transaction {} completed ===", i + 1);

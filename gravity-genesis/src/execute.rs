@@ -1,64 +1,24 @@
-use crate::utils::{
-    execute_revm_sequential, new_system_call_txn, new_system_create_txn, read_hex_from_file, BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOVERNOR_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR, SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR, VALIDATOR_MANAGER_ADDR, VALIDATOR_MANAGER_UTILS_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR
+use crate::{
+    genesis::GenesisConfig,
+    utils::{
+        CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, VALIDATOR_MANAGER_ADDR,
+        analyze_txn_result, execute_revm_sequential, new_system_call_txn, new_system_create_txn,
+        read_hex_from_file,
+    },
 };
 
 use alloy_chains::NamedChain;
 
-use crate::utils::{analyze_revert_reason, execute_revm_sequential_with_logging};
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
 use revm::{
-    db::{BundleState, CacheDB, PlainAccount}, primitives::{uint, AccountInfo, Address, Env, SpecId, TxEnv, KECCAK_EMPTY, U256}, DatabaseRef, InMemoryDB, StateBuilder
+    DatabaseRef, InMemoryDB, StateBuilder,
+    db::{CacheDB, PlainAccount},
+    primitives::{AccountInfo, Address, Env, SpecId, TxEnv, U256},
 };
 use revm_primitives::{Bytecode, Bytes, ExecutionResult, hex};
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Debug, fs::File, io::BufWriter};
 use tracing::{debug, error, info, warn};
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GenesisConfig {
-    #[serde(rename = "validatorAddresses")]
-    pub validator_addresses: Vec<String>,
-    #[serde(rename = "consensusPublicKeys")]
-    pub consensus_public_keys: Vec<String>,
-    #[serde(rename = "votingPowers")]
-    pub voting_powers: Vec<String>,
-    #[serde(rename = "validatorNetworkAddresses")]
-    pub validator_network_addresses: Vec<String>,
-    #[serde(rename = "fullnodeNetworkAddresses")]
-    pub fullnode_network_addresses: Vec<String>,
-}
-
-const CONTRACTS: [(&str, Address); 18] = [
-    ("System", SYSTEM_CALLER),
-    ("SystemReward", SYSTEM_REWARD_ADDR),
-    ("StakeConfig", STAKE_CONFIG_ADDR),
-    ("ValidatorManagerUtils", VALIDATOR_MANAGER_UTILS_ADDR),
-    ("ValidatorManager", VALIDATOR_MANAGER_ADDR),
-    (
-        "ValidatorPerformanceTracker",
-        VALIDATOR_PERFORMANCE_TRACKER_ADDR,
-    ),
-    ("EpochManager", EPOCH_MANAGER_ADDR),
-    ("GovToken", GOV_TOKEN_ADDR),
-    ("Timelock", TIMELOCK_ADDR),
-    ("GravityGovernor", GOVERNOR_ADDR),
-    ("JWKManager", JWK_MANAGER_ADDR),
-    ("KeylessAccount", KEYLESS_ACCOUNT_ADDR),
-    ("Block", BLOCK_ADDR),
-    ("Timestamp", TIMESTAMP_ADDR),
-    ("Genesis", GENESIS_ADDR),
-    ("StakeCredit", STAKE_CREDIT_ADDR),
-    ("Delegation", DELEGATION_ADDR),
-    ("GovHub", GOV_HUB_ADDR),
-];
-
-const SYSTEM_ACCOUNT_INFO: AccountInfo = AccountInfo {
-    balance: uint!(1_000_000_000_000_000_000_U256),
-    nonce: 1,
-    code_hash: KECCAK_EMPTY,
-    code: None,
-};
 
 fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> TxEnv {
     // Convert string addresses to Address type
@@ -67,6 +27,7 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
         .iter()
         .map(|addr| addr.parse::<Address>().expect("Invalid validator address"))
         .collect();
+    info!("validator addresses: {:?}", validator_addresses);
 
     // Convert consensus public keys from hex strings to bytes
     let consensus_public_keys: Vec<Bytes> = config
@@ -74,7 +35,9 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
         .iter()
         .map(|key| {
             let key_str = key.strip_prefix("0x").unwrap_or(key);
-            hex::decode(key_str).expect("Invalid consensus public key").into()
+            hex::decode(key_str)
+                .expect("Invalid consensus public key")
+                .into()
         })
         .collect();
 
@@ -117,10 +80,19 @@ fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> 
     info!("=== Genesis Initialize Parameters ===");
     info!("Genesis address: {:?}", genesis_address);
     info!("Validator addresses: {:?}", validator_addresses);
-    info!("Consensus public keys count: {}", consensus_public_keys.len());
+    info!(
+        "Consensus public keys count: {}",
+        consensus_public_keys.len()
+    );
     info!("Voting powers: {:?}", voting_powers);
-    info!("Validator network addresses count: {}", validator_network_addresses.len());
-    info!("Fullnode network addresses count: {}", fullnode_network_addresses.len());
+    info!(
+        "Validator network addresses count: {}",
+        validator_network_addresses.len()
+    );
+    info!(
+        "Fullnode network addresses count: {}",
+        fullnode_network_addresses.len()
+    );
 
     sol! {
         contract Genesis {
@@ -159,14 +131,14 @@ sol! {
             PENDING_INACTIVE, // 2
             INACTIVE // 3
         }
-    
+
         // Commission structure
         struct Commission {
             uint64 rate; // the commission rate charged to delegators(10000 is 100%)
             uint64 maxRate; // maximum commission rate which validator can ever charge
             uint64 maxChangeRate; // maximum daily increase of the validator commission
         }
-    
+
         /// Complete validator information (merged from multiple contracts)
         struct ValidatorInfo {
             // Basic information (from ValidatorManager)
@@ -183,7 +155,7 @@ sol! {
             bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
             bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
         }
-    
+
         struct ValidatorSet {
             ValidatorInfo[] activeValidators; // Active validators for the current epoch
             ValidatorInfo[] pendingInactive; // Pending validators to leave in next epoch (still active)
@@ -191,29 +163,13 @@ sol! {
             uint256 totalVotingPower; // Current total voting power
             uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
         }
-    
-        function getValidatorSet() external view returns (ValidatorSet memory);
-        function getInitialized() external view returns (bool);
 
-        uint256 public totalIncoming;
+        function getValidatorSet() external view returns (ValidatorSet memory);
     }
 }
 
 fn call_get_validator_set() -> TxEnv {
-    let call_data = IValidatorManager::totalIncomingCall {}.abi_encode();
-    new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
-}
-
-sol! {
-    contract Genesis {
-        function getGenesisTotalIncoming() external view returns (uint256);
-        address public addressValidatorManager;
-        uint256 public codeLenValidatorManager;
-    }
-}
-
-fn call_get_total_incoming() -> TxEnv {
-    let call_data = IValidatorManager::totalIncomingCall {}.abi_encode();
+    let call_data = IValidatorManager::getValidatorSetCall {}.abi_encode();
     new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
 }
 
@@ -224,17 +180,26 @@ fn print_validator_set_result(result: &ExecutionResult) {
                 revm_primitives::Output::Call(bytes) => bytes,
                 revm_primitives::Output::Create(bytes, _) => bytes,
             };
-            
+
             info!("=== getValidatorSet call successful ===");
             info!("Output length: {} bytes", output_bytes.len());
             info!("Raw output: 0x{}", hex::encode(output_bytes));
-            let solidity_validator_set = IValidatorManager::totalIncomingCall::abi_decode_returns(
-                result.output().unwrap(),
-                false,
-            )
-            .unwrap();
-            info!("Solidity validator set len: {:?}", solidity_validator_set.totalIncoming);
-            
+            let solidity_validator_set =
+                IValidatorManager::getValidatorSetCall::abi_decode_returns(
+                    result.output().unwrap(),
+                    false,
+                )
+                .unwrap();
+            info!(
+                "Solidity validator set len: {:?}",
+                solidity_validator_set
+                    ._0
+                    .activeValidators
+                    .first()
+                    .unwrap()
+                    .operator
+            );
+
             // TODO: Decode the validator set response properly
             // This would require fixing the ABI decoding issues
         }
@@ -246,32 +211,6 @@ fn print_validator_set_result(result: &ExecutionResult) {
             error!("getValidatorSet call halted: {:?}", reason);
         }
     }
-}
-
-// Deploy contracts using constructor bytecode (proper deployment)
-fn deploy_all_contracts(byte_code_dir: &str) -> (impl DatabaseRef, Vec<TxEnv>) {
-    let revm_db = InMemoryDB::default();
-    let mut db = CacheDB::new(revm_db);
-    let mut txs = Vec::new();
-
-    // Add system address with balance
-    db.insert_account_info(SYSTEM_ADDRESS, SYSTEM_ACCOUNT_INFO);
-
-    for (contract_name, target_address) in CONTRACTS {
-        let hex_path = format!("{}/{}.hex", byte_code_dir, contract_name);
-        let constructor_bytecode = read_hex_from_file(&hex_path);
-
-        // Create deployment transaction
-        let deploy_txn = new_system_create_txn(&constructor_bytecode, Bytes::default());
-        txs.push(deploy_txn);
-
-        info!(
-            "Prepared deployment for {}: target address {:?}",
-            contract_name, target_address
-        );
-    }
-
-    (db, txs)
 }
 
 // Alternative approach: Use BSC-style direct bytecode deployment
@@ -328,33 +267,6 @@ fn extract_runtime_bytecode(constructor_bytecode: &str) -> Vec<u8> {
     }
 }
 
-fn legacy_genesis_deploy(
-    byte_code_dir: &str,
-    config: &GenesisConfig,
-) -> Option<(Vec<ExecutionResult>, BundleState)> {
-    let (db, deploy_txs) = deploy_all_contracts(byte_code_dir);
-    let mut env = Env::default();
-    env.cfg.chain_id = NamedChain::Mainnet.into();
-    env.tx.gas_limit = 30_000_000;
-
-    // First deploy all contracts
-    let mut all_txs = deploy_txs;
-    all_txs.push(call_genesis_initialize(GENESIS_ADDR, &config));
-
-    match execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &all_txs, None) {
-        Ok((result, bundle_state)) => Some((result, bundle_state)),
-        Err(e2) => {
-            error!("=== Both deployment approaches failed ===");
-            error!(
-                "Constructor deployment error: {:?}",
-                e2.map_db_err(|_| "Database error".to_string())
-            );
-            panic!("Genesis execution failed with both approaches");
-            None
-        }
-    }
-}
-
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
     info!("=== Starting Genesis deployment and initialization ===");
 
@@ -373,43 +285,23 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     info!("Calling Genesis initialize function...");
     let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
     txs.push(genesis_init_txn);
+    let get_validator_set_txn = call_get_validator_set();
+    txs.push(get_validator_set_txn);
 
     let r = execute_revm_sequential(&mut wrapped_db, SpecId::LATEST, env.clone(), &txs);
-    let (mut result, mut bundle_state) = match r {
+    let (result, mut bundle_state) = match r {
         Ok((result, bundle_state)) => {
             info!("=== Genesis initialization successful ===");
-            
-            // Now call getValidatorSet to verify the validator set
-            info!("=== Calling getValidatorSet to verify validator set ===");
-            let get_validator_set_txn = call_get_total_incoming();
-            let validator_set_txs = vec![get_validator_set_txn];
-            
-            // Execute getValidatorSet on the same database that was used for genesis
-            match execute_revm_sequential(&mut wrapped_db, SpecId::LATEST, env.clone(), &validator_set_txs) {
-                Ok((validator_set_results, _)) => {
-                    if let Some(validator_set_result) = validator_set_results.first() {
-                        print_validator_set_result(validator_set_result);
-                    }
-                }
-                Err(e) => {
-                    error!("Failed to call getValidatorSet");
-                }
+
+            if let Some(validator_set_result) = result.last() {
+                print_validator_set_result(validator_set_result);
             }
-            
+
             (result, bundle_state)
         }
         Err(e) => {
-            error!("=== BSC-style deployment failed, trying constructor deployment ===");
             let error_msg = format!("{:?}", e.map_db_err(|_| "Database error".to_string()));
-            error!("Error: {}", error_msg);
-
-            match legacy_genesis_deploy(byte_code_dir, &config) {
-                Some((result, bundle_state)) => (result, bundle_state),
-                None => {
-                    error!("=== Both deployment approaches failed ===");
-                    panic!("Genesis execution failed with both approaches");
-                }
-            }
+            panic!("Error: {}", error_msg);
         }
     };
 
@@ -420,10 +312,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {
             error!("=== Transaction {} failed ===", i + 1);
-            error!("Detailed analysis: {}", analyze_revert_reason(r));
+            info!("Detailed analysis: {}", analyze_txn_result(r));
             panic!("Genesis transaction {} failed", i + 1);
         } else {
             info!("Transaction {}: succeed", i + 1);
+            info!("Detailed analysis: {}", analyze_txn_result(r));
         }
         success_count += 1;
     }
