@@ -109,8 +109,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// @inheritdoc IValidatorManager
     function initialize(
         InitializationParams calldata params
-    ) external onlyGenesis {
-        totalIncoming = address(this).code.length;
+    ) external initializer onlyGenesis {
         if (initialized) revert AlreadyInitialized();
         // totalIncoming = address(this).code.length; 没进来
         if (
@@ -601,6 +600,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // update voting power
             uint256 currentStake = _getValidatorStake(validator);
+            // TODO(jason): need further discussion
+            currentStake = 1;
 
             if (currentStake >= minStakeRequired) {
                 info.votingPower = currentStake;

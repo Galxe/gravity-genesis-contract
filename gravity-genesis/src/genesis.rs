@@ -42,10 +42,12 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
         .consensus_public_keys
         .iter()
         .map(|key| {
-            let key_str = key.strip_prefix("0x").unwrap_or(key);
-            hex::decode(key_str)
-                .expect("Invalid consensus public key")
-                .into()
+            // GApots would use the following code
+            // let public_key = bls12381::PublicKey::try_from(
+            //     hex::decode(node_config.consensus_public_key.as_bytes()).unwrap().as_slice(),
+            // )
+            key.as_bytes().to_vec().into()
+            // bcs::to_bytes(&key_str).unwrap().into()
         })
         .collect();
 
@@ -63,9 +65,12 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
             if addr.is_empty() {
                 Bytes::new()
             } else {
-                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
-                // hex::decode(addr_str).expect("Invalid validator network address").into()
-                Bytes::from(addr.as_bytes().to_vec())
+                // GAptos would use the following code
+                // let address_string: String = bcs::from_bytes(&address_bytes).unwrap();
+                // println!("address_string: {:?}", address_string);
+                // let validator_network_address: NetworkAddress =
+                //     NetworkAddress::from_str(&address_string).unwrap();
+                bcs::to_bytes(&addr).unwrap().into()
             }
         })
         .collect();
@@ -78,9 +83,7 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
             if addr.is_empty() {
                 Bytes::new()
             } else {
-                // let addr_str = addr.strip_prefix("0x").unwrap_or(addr);
-                // hex::decode(addr_str).expect("Invalid validator network address").into()
-                Bytes::from(addr.as_bytes().to_vec())
+                bcs::to_bytes(&addr).unwrap().into()
             }
         })
         .collect();

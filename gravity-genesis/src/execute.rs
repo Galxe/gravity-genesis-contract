@@ -78,7 +78,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
 
     // Try BSC-style deployment first
     let mut db = deploy_bsc_style(byte_code_dir);
-    let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
+    // let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
 
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
@@ -94,10 +94,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     let get_validator_set_txn = call_get_validator_set();
     txs.push(get_validator_set_txn);
 
-    let r = execute_revm_sequential(&mut wrapped_db, SpecId::LATEST, env.clone(), &txs);
+    let r = execute_revm_sequential(db, SpecId::LATEST, env.clone(), &txs);
     let (result, mut bundle_state) = match r {
         Ok((result, bundle_state)) => {
             info!("=== Genesis initialization successful ===");
+            info!("the bundle state is {:?}", bundle_state);
 
             if let Some(validator_set_result) = result.last() {
                 print_validator_set_result(validator_set_result, &config);
@@ -178,9 +179,10 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
             if let Some(existing) = genesis_state.get_mut(&address) {
                 existing.storage.extend(storage);
                 // Update account info if it has changed
-                if info.code.is_some() || info.balance > existing.info.balance {
-                    existing.info = info;
-                }
+                existing.info = info;
+                // if info.code.is_some() || info.balance > existing.info.balance {
+                //     existing.info = info;
+                // }
             } else {
                 genesis_state.insert(address, PlainAccount { info, storage });
             }
