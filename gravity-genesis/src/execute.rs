@@ -1,10 +1,9 @@
 use crate::{
     genesis::{
-        GenesisConfig, call_genesis_initialize, call_get_validator_set, print_validator_set_result,
+        call_genesis_initialize, call_get_current_epoch_info, call_get_validator_set, print_current_epoch_info_result, print_validator_set_result, GenesisConfig
     },
     utils::{
-        CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
-        execute_revm_sequential, read_hex_from_file,
+        analyze_txn_result, execute_revm_sequential, read_hex_from_file, CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS
     },
 };
 
@@ -93,6 +92,8 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     txs.push(genesis_init_txn);
     let get_validator_set_txn = call_get_validator_set();
     txs.push(get_validator_set_txn);
+    let get_current_epoch_info_txn = call_get_current_epoch_info();
+    txs.push(get_current_epoch_info_txn);
 
     let r = execute_revm_sequential(db, SpecId::LATEST, env.clone(), &txs);
     let (result, mut bundle_state) = match r {
@@ -100,8 +101,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
             info!("=== Genesis initialization successful ===");
             info!("the bundle state is {:?}", bundle_state);
 
-            if let Some(validator_set_result) = result.last() {
+            if let Some(validator_set_result) = result.get(1) {
                 print_validator_set_result(validator_set_result, &config);
+            }
+            if let Some(current_epoch_info_result) = result.get(2) {
+                print_current_epoch_info_result(current_epoch_info_result);
             }
 
             (result, bundle_state)

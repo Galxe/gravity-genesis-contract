@@ -4,7 +4,7 @@ use revm_primitives::{Address, Bytes, ExecutionResult, TxEnv, U256, hex};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-use crate::utils::{VALIDATOR_MANAGER_ADDR, new_system_call_txn};
+use crate::utils::{EPOCH_MANAGER_ADDR, VALIDATOR_MANAGER_ADDR, new_system_call_txn};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GenesisConfig {
@@ -323,9 +323,19 @@ sol! {
     }
 }
 
+sol! {
+    contract IEpochManager {
+        function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 duration);
+    }
+}
 pub fn call_get_validator_set() -> TxEnv {
     let call_data = IValidatorManager::getValidatorSetCall {}.abi_encode();
     new_system_call_txn(VALIDATOR_MANAGER_ADDR, call_data.into())
+}
+
+pub fn call_get_current_epoch_info() -> TxEnv {
+    let call_data = IEpochManager::getCurrentEpochInfoCall {}.abi_encode();
+    new_system_call_txn(EPOCH_MANAGER_ADDR, call_data.into())
 }
 
 pub fn print_validator_set_result(result: &ExecutionResult, config: &GenesisConfig) {
@@ -352,6 +362,40 @@ pub fn print_validator_set_result(result: &ExecutionResult, config: &GenesisConf
 
             // Validate consistency between initial data and returned data
             validate_genesis_data_consistency(config, active_validators);
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("getValidatorSet call reverted");
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("getValidatorSet call halted: {:?}", reason);
+        }
+    }
+}
+
+pub fn print_current_epoch_info_result(result: &ExecutionResult) {
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+
+            info!("=== getCurrentEpochInfo call successful ===");
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+
+            let solidity_current_epoch_info =
+                IEpochManager::getCurrentEpochInfoCall::abi_decode_returns(
+                    result.output().unwrap(),
+                    false,
+                )
+                .unwrap();
+
+            info!(
+                "Current epoch info: {:?}",
+                solidity_current_epoch_info.epoch
+            );
         }
         ExecutionResult::Revert { output, .. } => {
             error!("getValidatorSet call reverted");
