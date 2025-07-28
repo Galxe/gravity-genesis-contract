@@ -12,7 +12,6 @@ import "@src/interfaces/IValidatorManagerUtils.sol";
  * @notice This contract is deployed at address 0x000000000000000000000000000000000000200c
  */
 contract ValidatorManagerUtils is System, IValidatorManagerUtils {
-    
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     uint256 private constant BLS_SIG_LENGTH = 96;
 
@@ -83,8 +82,7 @@ contract ValidatorManagerUtils is System, IValidatorManagerUtils {
         uint256 totalVotingPower,
         uint256 currentPendingPower
     ) external view override {
-        uint256 votingPowerIncreaseLimit =
-            IStakeConfig(STAKE_CONFIG_ADDR).votingPowerIncreaseLimit();
+        uint256 votingPowerIncreaseLimit = IStakeConfig(STAKE_CONFIG_ADDR).votingPowerIncreaseLimit();
 
         if (totalVotingPower > 0) {
             uint256 currentJoining = currentPendingPower + increaseAmount;
@@ -137,8 +135,7 @@ contract ValidatorManagerUtils is System, IValidatorManagerUtils {
         // check commission settings
         uint256 maxCommissionRate = IStakeConfig(STAKE_CONFIG_ADDR).MAX_COMMISSION_RATE();
         if (
-            commission.maxRate > maxCommissionRate
-                || commission.rate > commission.maxRate
+            commission.maxRate > maxCommissionRate || commission.rate > commission.maxRate
                 || commission.maxChangeRate > commission.maxRate
         ) {
             revert IValidatorManager.InvalidCommission();
@@ -149,4 +146,4 @@ contract ValidatorManagerUtils is System, IValidatorManagerUtils {
             this.validateConsensusKey(validator, consensusPublicKey, blsProof);
         }
     }
-} 
+}

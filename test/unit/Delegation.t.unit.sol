@@ -57,7 +57,8 @@ contract DelegationTest is Test, TestConstants {
             consensusPublicKeys: new bytes[](0),
             votingPowers: new uint256[](0),
             validatorNetworkAddresses: new bytes[](0),
-            fullnodeNetworkAddresses: new bytes[](0)
+            fullnodeNetworkAddresses: new bytes[](0),
+            aptosAddresses: new bytes[](0)
         });
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).initialize(emptyParams);
         StakeConfigMock(STAKE_CONFIG_ADDR).initialize();

@@ -69,4 +69,4 @@ interface IValidatorManagerUtils {
         bool isOperatorUsed,
         bool isValidatorRegistered
     ) external view;
-} 
+}

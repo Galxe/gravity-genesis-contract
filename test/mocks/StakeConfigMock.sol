@@ -10,11 +10,15 @@ contract StakeConfigMock {
         initialized = true;
     }
 
-    function setVotingPowerIncreaseLimit(uint256 _limit) external {
+    function setVotingPowerIncreaseLimit(
+        uint256 _limit
+    ) external {
         votingPowerIncreaseLimit = _limit;
     }
 
-    function setMAX_COMMISSION_RATE(uint256 _rate) external {
+    function setMAX_COMMISSION_RATE(
+        uint256 _rate
+    ) external {
         MAX_COMMISSION_RATE = _rate;
     }
 }

@@ -39,6 +39,7 @@ interface IValidatorManager is IReconfigurableModule {
         address operator;
         bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
         bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes aptosAddress; // Aptos validator address
     }
 
     // ValidatorSetData structure
@@ -59,6 +60,7 @@ interface IValidatorManager is IReconfigurableModule {
         // Network addresses for Aptos compatibility
         bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
         bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+        bytes aptosAddress; // Aptos validator address
     }
 
     struct ValidatorSet {
@@ -139,6 +141,7 @@ interface IValidatorManager is IReconfigurableModule {
         uint256[] votingPowers;
         bytes[] validatorNetworkAddresses;
         bytes[] fullnodeNetworkAddresses;
+        bytes[] aptosAddresses;
     }
 
     /**

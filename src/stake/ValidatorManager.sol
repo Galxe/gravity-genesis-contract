@@ -126,6 +126,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // add initial validators
         for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
+            bytes memory validator_aptos_address = params.aptosAddresses[i];
+            require(validator_aptos_address.length == 32, "Validator aptos address must be 32 bytes");
             address validator = params.validatorAddresses[i];
             bytes memory consensusPublicKey = params.consensusPublicKeys[i];
             uint256 votingPower = params.votingPowers[i];
@@ -149,7 +151,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 operator: validator, // default self as operator
                 validatorNetworkAddresses: params.validatorNetworkAddresses[i],
-                fullnodeNetworkAddresses: params.fullnodeNetworkAddresses[i]
+                fullnodeNetworkAddresses: params.fullnodeNetworkAddresses[i],
+                aptosAddress: validator_aptos_address
             });
 
             // Add to active validators set
@@ -177,6 +180,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
+        require(params.aptosAddress.length == 32, "Validator aptos address must be 32 bytes");
         IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).validateRegistrationParams(
             validator,
             params.consensusPublicKey,
@@ -247,6 +251,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.consensusPublicKey = params.consensusPublicKey;
         info.validatorNetworkAddresses = params.validatorNetworkAddresses;
         info.fullnodeNetworkAddresses = params.fullnodeNetworkAddresses;
+        info.aptosAddress = params.aptosAddress;
     }
 
     function _setValidatorStatus(address validator, address stakeCreditAddress) internal {
@@ -316,7 +321,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 currentPendingPower += StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
             }
         }
-        
+
         IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
             votingPower, validatorSetData.totalVotingPower, currentPendingPower
         );
@@ -741,7 +746,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 currentPendingPower += StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
             }
         }
-        
+
         IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
             increaseAmount, validatorSetData.totalVotingPower, currentPendingPower
         );

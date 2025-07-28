@@ -15,10 +15,14 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
     // Test constants
     address private constant TEST_OPERATOR = 0x1234567890123456789012345678901234567890;
     address private constant TEST_VALIDATOR = 0x2234567890123456789012345678901234567890;
-    bytes private constant VALID_CONSENSUS_KEY = hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
-    bytes private constant INVALID_CONSENSUS_KEY = hex"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234"; // Too short
-    bytes private constant VALID_BLS_PROOF = hex"12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
-    bytes private constant INVALID_BLS_PROOF = hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234"; // Too short
+    bytes private constant VALID_CONSENSUS_KEY =
+        hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
+    bytes private constant INVALID_CONSENSUS_KEY =
+        hex"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234"; // Too short
+    bytes private constant VALID_BLS_PROOF =
+        hex"12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456";
+    bytes private constant INVALID_BLS_PROOF =
+        hex"123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234"; // Too short
 
     string private constant VALID_MONIKER = "TestVal1";
     string private constant INVALID_MONIKER_SHORT = "Te"; // Too short
@@ -29,7 +33,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
     function setUp() public {
         // Deploy mock stake config
         mockStakeConfig = new StakeConfigMock();
-        
+
         // Deploy ValidatorManagerUtils
         validatorManagerUtils = new ValidatorManagerUtils();
 
@@ -137,7 +141,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             rate: 1000, // 10%
             maxRate: 5000, // 50%
             maxChangeRate: 500 // 5%
-        });
+         });
 
         // Act - should not revert (use empty consensus key to avoid BLS verification in tests)
         validatorManagerUtils.validateRegistrationParams(
@@ -150,17 +154,14 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             false, // consensus key not used
             false, // moniker not used
             false, // operator not used
-            false  // validator not registered
+            false // validator not registered
         );
     }
 
     function test_validateRegistrationParams_alreadyRegistered_shouldRevert() public {
         // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000,
-            maxRate: 5000,
-            maxChangeRate: 500
-        });
+        IValidatorManager.Commission memory commission =
+            IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 });
 
         // Act & Assert
         vm.expectRevert(abi.encodeWithSelector(IValidatorManager.ValidatorAlreadyExists.selector, TEST_VALIDATOR));
@@ -174,20 +175,19 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             false,
             false,
             false,
-            true  // validator already registered
+            true // validator already registered
         );
     }
 
     function test_validateRegistrationParams_consensusKeyUsed_shouldRevert() public {
         // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000,
-            maxRate: 5000,
-            maxChangeRate: 500
-        });
+        IValidatorManager.Commission memory commission =
+            IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 });
 
         // Act & Assert
-        vm.expectRevert(abi.encodeWithSelector(IValidatorManager.DuplicateConsensusAddress.selector, VALID_CONSENSUS_KEY));
+        vm.expectRevert(
+            abi.encodeWithSelector(IValidatorManager.DuplicateConsensusAddress.selector, VALID_CONSENSUS_KEY)
+        );
         validatorManagerUtils.validateRegistrationParams(
             TEST_VALIDATOR,
             VALID_CONSENSUS_KEY,
@@ -195,7 +195,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             VALID_MONIKER,
             commission,
             TEST_OPERATOR,
-            true,  // consensus key already used
+            true, // consensus key already used
             false,
             false,
             false
@@ -204,11 +204,8 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
 
     function test_validateRegistrationParams_monikerUsed_shouldRevert() public {
         // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000,
-            maxRate: 5000,
-            maxChangeRate: 500
-        });
+        IValidatorManager.Commission memory commission =
+            IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 });
 
         // Act & Assert
         vm.expectRevert(abi.encodeWithSelector(IValidatorManager.DuplicateMoniker.selector, VALID_MONIKER));
@@ -220,7 +217,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             commission,
             TEST_OPERATOR,
             false,
-            true,  // moniker already used
+            true, // moniker already used
             false,
             false
         );
@@ -228,14 +225,13 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
 
     function test_validateRegistrationParams_operatorUsed_shouldRevert() public {
         // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000,
-            maxRate: 5000,
-            maxChangeRate: 500
-        });
+        IValidatorManager.Commission memory commission =
+            IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 });
 
         // Act & Assert
-        vm.expectRevert(abi.encodeWithSelector(IValidatorManager.AddressAlreadyInUse.selector, TEST_OPERATOR, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(IValidatorManager.AddressAlreadyInUse.selector, TEST_OPERATOR, address(0))
+        );
         validatorManagerUtils.validateRegistrationParams(
             TEST_VALIDATOR,
             "", // empty consensus key to avoid BLS verification
@@ -245,7 +241,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             TEST_OPERATOR,
             false,
             false,
-            true,  // operator already used
+            true, // operator already used
             false
         );
     }
@@ -276,11 +272,8 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
 
     function test_validateRegistrationParams_zeroOperator_shouldRevert() public {
         // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000,
-            maxRate: 5000,
-            maxChangeRate: 500
-        });
+        IValidatorManager.Commission memory commission =
+            IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 });
 
         // Act & Assert
         vm.expectRevert(abi.encodeWithSelector(IValidatorManager.InvalidAddress.selector, address(0)));
@@ -297,4 +290,4 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             false
         );
     }
-} 
+}

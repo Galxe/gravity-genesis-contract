@@ -35,25 +35,28 @@ contract Genesis is System {
         return genesisTotalIncoming;
     }
 
-    address public addressValidatorManager;
-    uint256 public codeLenValidatorManager;
-
     /**
      * @dev Genesis initialization entry function
      */
     function initialize(
-        address[] calldata validatorAddresses,
+        address[] calldata evmAddresses,
         bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
         bytes[] calldata validatorNetworkAddresses,
-        bytes[] calldata fullnodeNetworkAddresses
+        bytes[] calldata fullnodeNetworkAddresses,
+        bytes[] calldata validatorAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
         if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
         _initializeStake(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            evmAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            validatorAddresses
         );
 
         // 2. Initialize epoch module
@@ -77,14 +80,15 @@ contract Genesis is System {
     }
 
     /**
-     * @dev Initialize staking module
+     * @dev Initialize the staking module
      */
     function _initializeStake(
         address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
         bytes[] calldata validatorNetworkAddresses,
-        bytes[] calldata fullnodeNetworkAddresses
+        bytes[] calldata fullnodeNetworkAddresses,
+        bytes[] calldata aptosAddresses
     ) internal {
         // Initialize StakeConfig
         IStakeConfig(STAKE_CONFIG_ADDR).initialize();
@@ -95,14 +99,11 @@ contract Genesis is System {
             consensusPublicKeys: consensusPublicKeys,
             votingPowers: votingPowers,
             validatorNetworkAddresses: validatorNetworkAddresses,
-            fullnodeNetworkAddresses: fullnodeNetworkAddresses
+            fullnodeNetworkAddresses: fullnodeNetworkAddresses,
+            aptosAddresses: aptosAddresses
         });
 
-        
         IValidatorManager(VALIDATOR_MANAGER_ADDR).initialize(initParams);
-        genesisTotalIncoming = validatorAddresses.length + 178956969;
-        addressValidatorManager = VALIDATOR_MANAGER_ADDR;
-        codeLenValidatorManager = address(VALIDATOR_MANAGER_ADDR).code.length;
 
         // Initialize ValidatorPerformanceTracker
         IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).initialize(validatorAddresses);
