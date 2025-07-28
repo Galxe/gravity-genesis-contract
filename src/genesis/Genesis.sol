@@ -39,24 +39,24 @@ contract Genesis is System {
      * @dev Genesis initialization entry function
      */
     function initialize(
-        address[] calldata evmAddresses,
+        address[] calldata validatorAddresses,
         bytes[] calldata consensusPublicKeys,
         uint256[] calldata votingPowers,
         bytes[] calldata validatorNetworkAddresses,
         bytes[] calldata fullnodeNetworkAddresses,
-        bytes[] calldata validatorAddresses
+        bytes[] calldata aptosAddresses
     ) external onlySystemCaller {
         if (genesisCompleted) revert GenesisAlreadyCompleted();
         if (consensusPublicKeys.length == 0) revert InvalidInitialValidators();
 
         // 1. Initialize staking module
         _initializeStake(
-            evmAddresses,
+            validatorAddresses,
             consensusPublicKeys,
             votingPowers,
             validatorNetworkAddresses,
             fullnodeNetworkAddresses,
-            validatorAddresses
+            aptosAddresses
         );
 
         // 2. Initialize epoch module

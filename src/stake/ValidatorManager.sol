@@ -127,7 +127,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         // add initial validators
         for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
             bytes memory validator_aptos_address = params.aptosAddresses[i];
-            require(validator_aptos_address.length == 32, "Validator aptos address must be 32 bytes");
+            // TODO: remove this
+            // require(validator_aptos_address.length == 32, "Validator aptos address must be 32 bytes");
             address validator = params.validatorAddresses[i];
             bytes memory consensusPublicKey = params.consensusPublicKeys[i];
             uint256 votingPower = params.votingPowers[i];
@@ -180,7 +181,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
-        require(params.aptosAddress.length == 32, "Validator aptos address must be 32 bytes");
+        // TODO: remove this
+        // require(params.aptosAddress.length == 32, "Validator aptos address must be 32 bytes");
         IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).validateRegistrationParams(
             validator,
             params.consensusPublicKey,

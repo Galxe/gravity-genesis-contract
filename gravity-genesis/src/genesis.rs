@@ -18,6 +18,8 @@ pub struct GenesisConfig {
     pub validator_network_addresses: Vec<String>,
     #[serde(rename = "fullnodeNetworkAddresses")]
     pub fullnode_network_addresses: Vec<String>,
+    #[serde(rename = "aptosAddresses")]
+    pub aptos_addresses: Vec<String>,
 }
 
 pub struct GenesisInitParam {
@@ -26,6 +28,7 @@ pub struct GenesisInitParam {
     pub voting_powers: Vec<U256>,
     pub validator_network_addresses: Vec<Bytes>,
     pub fullnode_network_addresses: Vec<Bytes>,
+    pub aptos_addresses: Vec<Bytes>,
 }
 
 pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
@@ -88,12 +91,22 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
         })
         .collect();
 
+    let aptos_addresses: Vec<Bytes> = config
+        .aptos_addresses
+        .iter()
+        .map(|addr| {
+            let bytes: [u8; 32] = hex::decode(addr).unwrap().try_into().unwrap();
+            bytes.into()
+        })
+        .collect();
+
     GenesisInitParam {
         validator_addresses,
         consensus_public_keys,
         voting_powers,
         validator_network_addresses,
         fullnode_network_addresses,
+        aptos_addresses,
     }
 }
 
@@ -109,6 +122,7 @@ pub fn validate_genesis_data_consistency(
         voting_powers,
         validator_network_addresses,
         fullnode_network_addresses,
+        aptos_addresses,
     } = parse_genesis_config(config);
     let expected_count = validator_addresses.len();
     let actual_count = active_validators.len();
@@ -140,6 +154,20 @@ pub fn validate_genesis_data_consistency(
                 "❌ Operator address mismatch! Expected: {:?}, Actual: {:?}",
                 expected_operator, actual_operator
             );
+            all_match = false;
+        }
+
+        let expected_aptos_address = aptos_addresses[i].clone();
+        let actual_aptos_address = validator.aptosAddress.to_vec();
+        if expected_aptos_address == actual_aptos_address {
+            info!(
+                "✅ Aptos address matches: 0x{}",
+                hex::encode(&actual_aptos_address)
+            );
+        } else {
+            error!("❌ Aptos address mismatch!");
+            error!("Expected: 0x{}", hex::encode(&expected_aptos_address));
+            error!("Actual: 0x{}", hex::encode(&actual_aptos_address));
             all_match = false;
         }
 
@@ -248,6 +276,7 @@ pub fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig)
         "Fullnode network addresses count: {}",
         param.fullnode_network_addresses.len()
     );
+    info!("Aptos addresses count: {}", param.aptos_addresses.len());
 
     sol! {
         contract Genesis {
@@ -256,7 +285,8 @@ pub fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig)
                 bytes[] calldata consensusPublicKeys,
                 uint256[] calldata votingPowers,
                 bytes[] calldata validatorNetworkAddresses,
-                bytes[] calldata fullnodeNetworkAddresses
+                bytes[] calldata fullnodeNetworkAddresses,
+                bytes[] calldata aptosAddresses
             ) external;
         }
     }
@@ -267,6 +297,7 @@ pub fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig)
         votingPowers: param.voting_powers,
         validatorNetworkAddresses: param.validator_network_addresses,
         fullnodeNetworkAddresses: param.fullnode_network_addresses,
+        aptosAddresses: param.aptos_addresses,
     }
     .abi_encode();
 
@@ -309,6 +340,7 @@ sol! {
             address operator;
             bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
             bytes fullnodeNetworkAddresses; // BCS serialized Vec<NetworkAddress>
+            bytes aptosAddress; // Aptos validator address
         }
 
         struct ValidatorSet {
