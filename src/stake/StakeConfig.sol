@@ -47,7 +47,9 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     /// @inheritdoc IStakeConfig
     function initialize() public initializer onlyGenesis {
         // Staking parameters
-        minValidatorStake = 1000 ether;
+        // minValidatorStake = 1000 ether;
+        // TODO(jason): Might need further discussion
+        minValidatorStake = 0 ether;
         maximumStake = 1000000 ether;
         minDelegationStake = 0.1 ether;
         minDelegationChange = 0.1 ether;
