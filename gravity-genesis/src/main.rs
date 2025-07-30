@@ -135,6 +135,7 @@ async fn run_main_logic(args: &Args) -> Result<()> {
     let config_content = fs::read_to_string(&args.config_file)?;
     let config: GenesisConfig = serde_json::from_str(&config_content)?;
     info!("Genesis configuration loaded successfully");
+    info!("Genesis configuration: {:?}", config);
 
     if let Some(output_dir) = &args.output {
         if !fs::metadata(&output_dir).is_ok() {
