@@ -1,6 +1,6 @@
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolCall;
-use revm_primitives::{Address, Bytes, ExecutionResult, TxEnv, U256, hex};
+use revm_primitives::{Address, Bytes, ExecutionResult, FixedBytes, TxEnv, U256, hex};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
@@ -29,6 +29,17 @@ pub struct GenesisInitParam {
     pub validator_network_addresses: Vec<Bytes>,
     pub fullnode_network_addresses: Vec<Bytes>,
     pub aptos_addresses: Vec<Bytes>,
+}
+
+fn bytes_to_fixed32(bytes: &Bytes) -> Result<FixedBytes<32>, &'static str> {
+    if bytes.len() != 32 {
+        return Err("bytes length is not 32");
+    }
+
+    let fixed = FixedBytes::<32>::try_from(bytes.as_ref())
+        .map_err(|_| "failed to convert to FixedBytes<32>")?;
+
+    Ok(fixed)
 }
 
 pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
@@ -99,6 +110,23 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
             bytes.into()
         })
         .collect();
+
+    let address_from_aptos_address: Vec<Address> = aptos_addresses
+        .iter()
+        .map(|addr| {
+            let address = Address::from_word(bytes_to_fixed32(addr).unwrap());
+            address
+        })
+        .collect();
+
+    for i in 0..validator_addresses.len() {
+        if validator_addresses[i] != address_from_aptos_address[i] {
+            panic!(
+                "❌ Validator address mismatch! Expected: {:?}, Actual: {:?}",
+                validator_addresses[i], address_from_aptos_address[i]
+            );
+        }
+    }
 
     GenesisInitParam {
         validator_addresses,
