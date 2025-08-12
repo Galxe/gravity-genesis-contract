@@ -76,6 +76,8 @@ contract Genesis is System {
         // Trigger first epoch
         IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
 
+        ITimestamp(TIMESTAMP_ADDR).initialize();
+
         emit GenesisCompleted(block.timestamp, consensusPublicKeys.length);
     }
 

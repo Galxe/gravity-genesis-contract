@@ -20,6 +20,11 @@ interface ITimestamp {
     error TimestampMustAdvance(uint64 providedTimestamp, uint64 currentTimestamp);
 
     /**
+     * @dev Initialize the contract during genesis
+     */
+    function initialize() external;
+    
+    /**
      * @dev Updates global time through consensus, requires VM permissions, called during block prologue
      * Corresponds exactly to Aptos's update_global_time function
      * @param proposer The proposer's address
