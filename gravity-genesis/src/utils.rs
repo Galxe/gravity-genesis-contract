@@ -3,10 +3,8 @@ use alloy_primitives::address;
 use alloy_sol_macro::sol;
 use alloy_sol_types::SolEvent;
 use revm::{
-    Database, DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
-    db::{BundleState, State, states::bundle_state::BundleRetention},
-    inspector_handle_register,
-    inspectors::TracerEip3155,
+    DatabaseCommit, DatabaseRef, EvmBuilder, StateBuilder,
+    db::{BundleState, states::bundle_state::BundleRetention},
     primitives::{Address, EVMError, Env, ExecutionResult, SpecId, TxEnv, U256},
 };
 use revm_primitives::{AccountInfo, Bytes, KECCAK_EMPTY, TxKind, hex, uint};
@@ -142,12 +140,6 @@ where
         .with_spec_id(spec_id)
         .with_env(Box::new(env))
         .build();
-
-    // let mut evm = evm
-    //     .modify()
-    //     .reset_handler_with_external_context(TracerEip3155::new(Box::new(std::io::stdout())))
-    //     .append_handler_register(inspector_handle_register)
-    //     .build();
 
     let mut results = Vec::with_capacity(txs.len());
     for (i, tx) in txs.iter().enumerate() {

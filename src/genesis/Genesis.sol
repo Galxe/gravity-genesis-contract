@@ -29,12 +29,6 @@ contract Genesis is System {
 
     event GenesisCompleted(uint256 timestamp, uint256 validatorCount);
 
-    uint256 public genesisTotalIncoming;
-
-    function getGenesisTotalIncoming() external view returns (uint256) {
-        return genesisTotalIncoming;
-    }
-
     /**
      * @dev Genesis initialization entry function
      */

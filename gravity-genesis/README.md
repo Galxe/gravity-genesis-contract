@@ -171,19 +171,22 @@ After initialization, the complete chain state is captured including:
 ```json
 {
   "validatorAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
+    "0x6e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ],
   "consensusPublicKeys": [
-    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
+    "851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
     "1"
   ],
   "validatorNetworkAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
   ],
   "fullnodeNetworkAddresses": [
-    ""
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
+  ],
+  "aptosAddresses": [
+    "2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ]
 }
 ```

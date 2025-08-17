@@ -17,30 +17,34 @@
 ```json
 {
   "validatorAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
+    "0x6e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ],
   "consensusPublicKeys": [
-    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
+    "851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
     "1"
   ],
   "validatorNetworkAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
   ],
   "fullnodeNetworkAddresses": [
-    ""
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
+  ],
+  "aptosAddresses": [
+    "2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ]
 }
 ```
 
 ### 参数说明
 
-- **validatorAddresses**: 验证人地址列表
+- **validatorAddresses**: 验证人地址列表(evm address)
 - **consensusPublicKeys**: 共识public key
 - **votingPowers**: 投票权重列表（字符串格式的U256）
 - **validatorNetworkAddresses**: 投票地址列表（十六进制字符串）
 - **fullnodeNetworkAddresses**: 投票地址列表（十六进制字符串）
+- **aptosAddresses**: Aptos address(32)
 
 ## 使用方法
 
@@ -119,19 +123,22 @@ Genesis合约的initialize函数会：
 ```json
 {
   "validatorAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430d"
+    "0x6e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ],
   "consensusPublicKeys": [
-    "0x851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
+    "851d41932d866f5fabed6673898e15473e6a0adcf5033d2c93816c6b115c85ad3451e0bac61d570d5ed9f23e1e7f77c4"
   ],
   "votingPowers": [
     "1"
   ],
   "validatorNetworkAddresses": [
-    "0x2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
   ],
   "fullnodeNetworkAddresses": [
-    ""
+    "/ip4/127.0.0.1/tcp/2024/noise-ik/2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f/handshake/0"
+  ],
+  "aptosAddresses": [
+    "2d86b40a1d692c0749a0a0426e2021ee24e2430da0f5bb9c2ae6c586bf3e0a0f"
   ]
 }
 ``` 
