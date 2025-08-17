@@ -61,6 +61,10 @@ struct Args {
     /// Log file path (optional)
     #[arg(short, long)]
     log_file: Option<String>,
+
+    /// JWKs file path (optional)
+    #[arg(short, long)]
+    jwks_file: Option<String>,
 }
 
 #[tokio::main]
@@ -144,8 +148,12 @@ async fn run_main_logic(args: &Args) -> Result<()> {
         info!("Output directory: {}", output_dir);
     }
 
-    let (db, bundle_state) =
-        execute::genesis_generate(&args.byte_code_dir, &args.output.as_ref().unwrap(), &config);
+    let (db, bundle_state) = execute::genesis_generate(
+        &args.byte_code_dir,
+        &args.output.as_ref().unwrap(),
+        &config,
+        args.jwks_file.clone(),
+    );
 
     post_genesis::verify_result(db, bundle_state, &config);
 

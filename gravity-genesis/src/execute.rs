@@ -1,5 +1,6 @@
 use crate::{
     genesis::{GenesisConfig, call_genesis_initialize},
+    jwks::upsert_observed_jwks,
     utils::{
         CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
         execute_revm_sequential, read_hex_from_file,
@@ -81,6 +82,7 @@ pub fn genesis_generate(
     byte_code_dir: &str,
     output_dir: &str,
     config: &GenesisConfig,
+    jwks_file: Option<String>,
 ) -> (InMemoryDB, BundleState) {
     info!("=== Starting Genesis deployment and initialization ===");
 
@@ -88,7 +90,14 @@ pub fn genesis_generate(
 
     let env = prepare_env();
 
-    let txs = vec![call_genesis_initialize(GENESIS_ADDR, config)];
+    let txs = if let Some(jwks_file) = jwks_file {
+        vec![
+            call_genesis_initialize(GENESIS_ADDR, config),
+            upsert_observed_jwks(&jwks_file).expect("Failed to upsert observed JWKs"),
+        ]
+    } else {
+        vec![call_genesis_initialize(GENESIS_ADDR, config)]
+    };
 
     let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs, None);
     let (result, mut bundle_state) = match r {
