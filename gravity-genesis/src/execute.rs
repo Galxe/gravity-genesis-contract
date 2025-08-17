@@ -5,7 +5,7 @@ use crate::{
     },
     utils::{
         CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
-        execute_revm_sequential, execute_revm_sequential_with_bundle, read_hex_from_file,
+        execute_revm_sequential, read_hex_from_file,
     },
 };
 
@@ -99,7 +99,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     all_txs.push(get_current_epoch_info_txn.clone());
     txs.push(get_current_epoch_info_txn);
 
-    let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs);
+    let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs, None);
     let (result, mut bundle_state) = match r {
         Ok((result, bundle_state)) => {
             info!("=== Genesis initialization successful ===");
@@ -122,12 +122,12 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
 
     info!("=== Bundle state ===");
     info!("{:?}", bundle_state);
-    let new_re = execute_revm_sequential_with_bundle(
+    let new_re = execute_revm_sequential(
         db,
         SpecId::LATEST,
         env.clone(),
         &all_txs,
-        bundle_state.clone(),
+        Some(bundle_state.clone()),
     );
     match new_re {
         Ok((result, _)) => {
@@ -186,7 +186,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     }
 
     // Add any state changes from the bundle_state (from the initialize transaction)
-    bundle_state.state.remove(&SYSTEM_ADDRESS);    
+    bundle_state.state.remove(&SYSTEM_ADDRESS);
     // write bundle state into one json file named bundle_state.json
     serde_json::to_writer_pretty(
         BufWriter::new(File::create(format!("{output_dir}/bundle_state.json")).unwrap()),
