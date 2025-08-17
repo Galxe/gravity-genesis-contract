@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use gravity_genesis::{execute, genesis::GenesisConfig};
+use gravity_genesis::{execute, genesis::GenesisConfig, post_genesis};
 use serde_json;
 use std::fs;
 use tracing::{Level, info};
@@ -144,11 +144,10 @@ async fn run_main_logic(args: &Args) -> Result<()> {
         info!("Output directory: {}", output_dir);
     }
 
-    execute::genesis_generate(
-        &args.byte_code_dir,
-        &args.output.as_ref().unwrap(),
-        config,
-    );
+    let (db, bundle_state) =
+        execute::genesis_generate(&args.byte_code_dir, &args.output.as_ref().unwrap(), &config);
+
+    post_genesis::verify_result(db, bundle_state, &config);
 
     info!("Gravity Genesis Binary completed successfully");
     Ok(())

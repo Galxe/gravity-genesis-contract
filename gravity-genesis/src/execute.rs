@@ -1,8 +1,5 @@
 use crate::{
-    genesis::{
-        GenesisConfig, call_genesis_initialize, call_get_current_epoch_info,
-        call_get_validator_set, print_current_epoch_info_result, print_validator_set_result,
-    },
+    genesis::{GenesisConfig, call_genesis_initialize},
     utils::{
         CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
         execute_revm_sequential, read_hex_from_file,
@@ -13,7 +10,7 @@ use alloy_chains::NamedChain;
 
 use revm::{
     InMemoryDB,
-    db::PlainAccount,
+    db::{BundleState, PlainAccount},
     primitives::{AccountInfo, Env, SpecId},
 };
 use revm_primitives::{Bytecode, Bytes, hex};
@@ -73,91 +70,54 @@ fn extract_runtime_bytecode(constructor_bytecode: &str) -> Vec<u8> {
     }
 }
 
-pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
-    info!("=== Starting Genesis deployment and initialization ===");
-
-    // Try BSC-style deployment first
-    let db = deploy_bsc_style(byte_code_dir);
-    // let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
-
+pub fn prepare_env() -> Env {
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
-
-    // Set higher gas limit for genesis transactions
     env.tx.gas_limit = 30_000_000;
+    env
+}
 
-    let mut txs = Vec::new();
-    // Call Genesis initialize function
-    info!("Calling Genesis initialize function...");
-    let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
-    let mut all_txs = vec![];
-    txs.push(genesis_init_txn);
-    let get_validator_set_txn = call_get_validator_set();
-    all_txs.push(get_validator_set_txn.clone());
-    txs.push(get_validator_set_txn);
-    let get_current_epoch_info_txn = call_get_current_epoch_info();
-    all_txs.push(get_current_epoch_info_txn.clone());
-    txs.push(get_current_epoch_info_txn);
+pub fn genesis_generate(
+    byte_code_dir: &str,
+    output_dir: &str,
+    config: &GenesisConfig,
+) -> (InMemoryDB, BundleState) {
+    info!("=== Starting Genesis deployment and initialization ===");
+
+    let db = deploy_bsc_style(byte_code_dir);
+
+    let env = prepare_env();
+
+    let txs = vec![call_genesis_initialize(GENESIS_ADDR, config)];
 
     let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs, None);
     let (result, mut bundle_state) = match r {
         Ok((result, bundle_state)) => {
             info!("=== Genesis initialization successful ===");
-            info!("the bundle state is {:?}", bundle_state);
-
-            if let Some(validator_set_result) = result.get(1) {
-                print_validator_set_result(validator_set_result, &config);
-            }
-            if let Some(current_epoch_info_result) = result.get(2) {
-                print_current_epoch_info_result(current_epoch_info_result);
-            }
-
             (result, bundle_state)
         }
         Err(e) => {
-            let error_msg = format!("{:?}", e.map_db_err(|_| "Database error".to_string()));
-            panic!("Error: {}", error_msg);
+            panic!(
+                "Error: {}",
+                format!("{:?}", e.map_db_err(|_| "Database error".to_string()))
+            );
         }
     };
+    debug!("the bundle state is {:?}", bundle_state);
+    let ret = (db, bundle_state.clone());
 
-    info!("=== Bundle state ===");
-    info!("{:?}", bundle_state);
-    let new_re = execute_revm_sequential(
-        db,
-        SpecId::LATEST,
-        env.clone(),
-        &all_txs,
-        Some(bundle_state.clone()),
-    );
-    match new_re {
-        Ok((result, _)) => {
-            if let Some(validator_set_result) = result.get(0) {
-                print_validator_set_result(validator_set_result, &config);
-            }
-            if let Some(current_epoch_info_result) = result.get(1) {
-                print_current_epoch_info_result(current_epoch_info_result);
-            }
-        }
-        Err(e) => {
-            error!("Error: {:?}", e);
-        }
-    }
-
-    let mut success_count = 0;
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {
             error!("=== Transaction {} failed ===", i + 1);
             info!("Detailed analysis: {}", analyze_txn_result(r));
             panic!("Genesis transaction {} failed", i + 1);
         } else {
-            info!("Transaction {}: succeed", i + 1);
             info!("Detailed analysis: {}", analyze_txn_result(r));
         }
-        success_count += 1;
     }
     info!(
         "=== All {} transactions completed successfully ===",
-        success_count
+        result.len()
     );
 
     // Add deployed contracts to the final state
@@ -211,32 +171,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
             // If this address already exists in genesis_state, merge the storage
             if let Some(existing) = genesis_state.get_mut(&address) {
                 existing.storage.extend(storage);
-                // Update account info if it has changed
                 existing.info = info;
-                // if info.code.is_some() || info.balance > existing.info.balance {
-                //     existing.info = info;
-                // }
             } else {
                 genesis_state.insert(address, PlainAccount { info, storage });
             }
         }
-    }
-
-    info!("=== Final Genesis State ===");
-    info!("Total accounts: {}", genesis_state.len());
-    for (address, account) in &genesis_state {
-        debug!("Address: {:?}", address);
-        debug!("  Balance: {}", account.info.balance);
-        debug!("  Nonce: {}", account.info.nonce);
-        debug!(
-            "  Code: {}",
-            account
-                .info
-                .code
-                .as_ref()
-                .map_or("None".to_string(), |c| format!("{} bytes", c.len()))
-        );
-        debug!("  Storage slots: {}", account.storage.len());
     }
 
     serde_json::to_writer_pretty(
@@ -262,11 +201,5 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
         &contracts_json,
     )
     .unwrap();
-
-    info!("=== Genesis files generated successfully ===");
-    info!("- genesis_accounts.json: {} accounts", genesis_state.len());
-    info!(
-        "- genesis_contracts.json: {} contracts",
-        contracts_json.len()
-    );
+    ret
 }
