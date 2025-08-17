@@ -16,7 +16,7 @@ import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
 import "@src/interfaces/IReconfigurableModule.sol";
-import "@src/lib/ValidatorManagerLib.sol";
+import "@src/interfaces/IValidatorManagerUtils.sol";
 /**
  * @title ValidatorManager
  * @dev Contract for unified validator set management
@@ -24,7 +24,6 @@ import "@src/lib/ValidatorManagerLib.sol";
 
 contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorManager, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
-    using ValidatorManagerLib for *;
 
     uint256 private constant BREATHE_BLOCK_INTERVAL = 1 days;
     uint64 public constant MAX_VALIDATOR_SET_SIZE = 65536;
@@ -106,9 +105,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// @inheritdoc IValidatorManager
     function initialize(
         InitializationParams calldata params
-    ) external onlyGenesis {
+    ) external initializer onlyGenesis {
         if (initialized) revert AlreadyInitialized();
-
         if (
             params.validatorAddresses.length != params.consensusPublicKeys.length
                 || params.validatorAddresses.length != params.votingPowers.length
@@ -123,6 +121,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // add initial validators
         for (uint256 i = 0; i < params.validatorAddresses.length; i++) {
+            bytes memory validator_aptos_address = params.aptosAddresses[i];
+            // TODO: remove this
+            // require(validator_aptos_address.length == 32, "Validator aptos address must be 32 bytes");
             address validator = params.validatorAddresses[i];
             bytes memory consensusPublicKey = params.consensusPublicKeys[i];
             uint256 votingPower = params.votingPowers[i];
@@ -146,7 +147,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                 updateTime: ITimestamp(TIMESTAMP_ADDR).nowSeconds(),
                 operator: validator, // default self as operator
                 validatorNetworkAddresses: params.validatorNetworkAddresses[i],
-                fullnodeNetworkAddresses: params.fullnodeNetworkAddresses[i]
+                fullnodeNetworkAddresses: params.fullnodeNetworkAddresses[i],
+                aptosAddress: validator_aptos_address
             });
 
             // Add to active validators set
@@ -173,8 +175,20 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator = msg.sender;
 
         // validate params
-        ValidatorManagerLib.validateRegistrationParams(
-            validator, params, validatorInfos, consensusToValidator, _monikerSet, operatorToValidator
+        bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
+        // TODO: remove this
+        // require(params.aptosAddress.length == 32, "Validator aptos address must be 32 bytes");
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).validateRegistrationParams(
+            validator,
+            params.consensusPublicKey,
+            params.blsProof,
+            params.moniker,
+            params.commission,
+            params.initialOperator,
+            params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0),
+            _monikerSet[monikerHash],
+            operatorToValidator[params.initialOperator] != address(0),
+            validatorInfos[validator].registered
         );
 
         // check stake requirements
@@ -197,7 +211,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _setupValidatorMappings(validator, params);
 
         // record validator name
-        bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         _monikerSet[monikerHash] = true;
 
         // initial stake
@@ -235,6 +248,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.consensusPublicKey = params.consensusPublicKey;
         info.validatorNetworkAddresses = params.validatorNetworkAddresses;
         info.fullnodeNetworkAddresses = params.fullnodeNetworkAddresses;
+        info.aptosAddress = params.aptosAddress;
     }
 
     function _setValidatorStatus(address validator, address stakeCreditAddress) internal {
@@ -295,8 +309,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
 
         // check voting power increase limit
-        ValidatorManagerLib.checkVotingPowerIncrease(
-            votingPower, validatorSetData.totalVotingPower, pendingActive, validatorInfos
+        // calculate current pending power
+        uint256 currentPendingPower = 0;
+        address[] memory pendingVals = pendingActive.values();
+        for (uint256 i = 0; i < pendingVals.length; i++) {
+            address stakeCreditAddress = validatorInfos[pendingVals[i]].stakeCreditAddress;
+            if (stakeCreditAddress != address(0)) {
+                currentPendingPower += StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
+            }
+        }
+
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
+            votingPower, validatorSetData.totalVotingPower, currentPendingPower
         );
 
         // update status to PENDING_ACTIVE
@@ -578,6 +602,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             // update voting power
             uint256 currentStake = _getValidatorStake(validator);
+            // TODO(jason): need further discussion
+            currentStake = 1;
 
             if (currentStake >= minStakeRequired) {
                 info.votingPower = currentStake;
@@ -708,8 +734,18 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function checkVotingPowerIncrease(
         uint256 increaseAmount
     ) external view {
-        ValidatorManagerLib.checkVotingPowerIncrease(
-            increaseAmount, validatorSetData.totalVotingPower, pendingActive, validatorInfos
+        // calculate current pending power
+        uint256 currentPendingPower = 0;
+        address[] memory pendingVals = pendingActive.values();
+        for (uint256 i = 0; i < pendingVals.length; i++) {
+            address stakeCreditAddress = validatorInfos[pendingVals[i]].stakeCreditAddress;
+            if (stakeCreditAddress != address(0)) {
+                currentPendingPower += StakeCredit(payable(stakeCreditAddress)).getNextEpochVotingPower();
+            }
+        }
+
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
+            increaseAmount, validatorSetData.totalVotingPower, currentPendingPower
         );
     }
 

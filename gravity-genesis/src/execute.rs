@@ -1,163 +1,22 @@
-use crate::utils::{
-    BLOCK_ADDR, DELEGATION_ADDR, EPOCH_MANAGER_ADDR, GENESIS_ADDR, GOV_HUB_ADDR, GOV_TOKEN_ADDR,
-    GOVERNOR_ADDR, JWK_MANAGER_ADDR, KEYLESS_ACCOUNT_ADDR, STAKE_CONFIG_ADDR, STAKE_CREDIT_ADDR,
-    SYSTEM_ADDRESS, SYSTEM_CALLER, SYSTEM_REWARD_ADDR, TIMELOCK_ADDR, TIMESTAMP_ADDR,
-    VALIDATOR_MANAGER_ADDR, VALIDATOR_PERFORMANCE_TRACKER_ADDR, new_system_call_txn,
-    new_system_create_txn, read_hex_from_file,
+use crate::{
+    genesis::{
+        call_genesis_initialize, call_get_current_epoch_info, call_get_validator_set, print_current_epoch_info_result, print_validator_set_result, GenesisConfig
+    },
+    utils::{
+        analyze_txn_result, execute_revm_sequential, read_hex_from_file, CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS
+    },
 };
 
 use alloy_chains::NamedChain;
 
-use crate::utils::{analyze_revert_reason, execute_revm_sequential_with_logging};
-use alloy_sol_macro::sol;
-use alloy_sol_types::SolCall;
 use revm::{
-    DatabaseRef, InMemoryDB,
-    db::{BundleState, CacheDB, PlainAccount},
-    primitives::{AccountInfo, Address, Env, KECCAK_EMPTY, SpecId, TxEnv, U256, uint},
+    DatabaseRef, InMemoryDB, StateBuilder,
+    db::{CacheDB, PlainAccount},
+    primitives::{AccountInfo, Env, SpecId},
 };
-use revm_primitives::{Bytecode, Bytes, ExecutionResult, hex};
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Debug, fs::File, io::BufWriter};
+use revm_primitives::{Bytecode, Bytes, hex};
+use std::{collections::HashMap, fs::File, io::BufWriter};
 use tracing::{debug, error, info, warn};
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GenesisConfig {
-    #[serde(rename = "validatorAddresses")]
-    pub validator_addresses: Vec<String>,
-    #[serde(rename = "consensusAddresses")]
-    pub consensus_addresses: Vec<String>,
-    #[serde(rename = "feeAddresses")]
-    pub fee_addresses: Vec<String>,
-    #[serde(rename = "votingPowers")]
-    pub voting_powers: Vec<String>,
-    #[serde(rename = "voteAddresses")]
-    pub vote_addresses: Vec<String>,
-}
-
-const CONTRACTS: [(&str, Address); 17] = [
-    ("System", SYSTEM_CALLER),
-    ("SystemReward", SYSTEM_REWARD_ADDR),
-    ("StakeConfig", STAKE_CONFIG_ADDR),
-    ("ValidatorManager", VALIDATOR_MANAGER_ADDR),
-    (
-        "ValidatorPerformanceTracker",
-        VALIDATOR_PERFORMANCE_TRACKER_ADDR,
-    ),
-    ("EpochManager", EPOCH_MANAGER_ADDR),
-    ("GovToken", GOV_TOKEN_ADDR),
-    ("Timelock", TIMELOCK_ADDR),
-    ("GravityGovernor", GOVERNOR_ADDR),
-    ("JWKManager", JWK_MANAGER_ADDR),
-    ("KeylessAccount", KEYLESS_ACCOUNT_ADDR),
-    ("Block", BLOCK_ADDR),
-    ("Timestamp", TIMESTAMP_ADDR),
-    ("Genesis", GENESIS_ADDR),
-    ("StakeCredit", STAKE_CREDIT_ADDR),
-    ("Delegation", DELEGATION_ADDR),
-    ("GovHub", GOV_HUB_ADDR),
-];
-
-const SYSTEM_ACCOUNT_INFO: AccountInfo = AccountInfo {
-    balance: uint!(1_000_000_000_000_000_000_U256),
-    nonce: 1,
-    code_hash: KECCAK_EMPTY,
-    code: None,
-};
-
-fn call_genesis_initialize(genesis_address: Address, config: &GenesisConfig) -> TxEnv {
-    // Convert string addresses to Address type
-    let validator_addresses: Vec<Address> = config
-        .validator_addresses
-        .iter()
-        .map(|addr| addr.parse::<Address>().expect("Invalid validator address"))
-        .collect();
-
-    let consensus_addresses: Vec<Address> = config
-        .consensus_addresses
-        .iter()
-        .map(|addr| addr.parse::<Address>().expect("Invalid consensus address"))
-        .collect();
-
-    let fee_addresses: Vec<Address> = config
-        .fee_addresses
-        .iter()
-        .map(|addr| addr.parse::<Address>().expect("Invalid fee address"))
-        .collect();
-
-    let voting_powers: Vec<U256> = config
-        .voting_powers
-        .iter()
-        .map(|power| power.parse::<U256>().expect("Invalid voting power"))
-        .collect();
-
-    let vote_addresses: Vec<Bytes> = config
-        .vote_addresses
-        .iter()
-        .map(|addr| hex::decode(addr).expect("Invalid vote address").into())
-        .collect();
-
-    info!("=== Genesis Initialize Parameters ===");
-    info!("Genesis address: {:?}", genesis_address);
-    info!("Validator addresses: {:?}", validator_addresses);
-    info!("Consensus addresses: {:?}", consensus_addresses);
-    info!("Fee addresses: {:?}", fee_addresses);
-    info!("Voting powers: {:?}", voting_powers);
-    info!("Vote addresses count: {}", vote_addresses.len());
-
-    sol! {
-        contract Genesis {
-            function initialize(
-                address[] calldata validatorAddresses,
-                address[] calldata consensusAddresses,
-                address payable[] calldata feeAddresses,
-                uint256[] calldata votingPowers,
-                bytes[] calldata voteAddresses
-            ) external;
-        }
-    }
-
-    let call_data = Genesis::initializeCall {
-        validatorAddresses: validator_addresses,
-        consensusAddresses: consensus_addresses,
-        feeAddresses: fee_addresses,
-        votingPowers: voting_powers,
-        voteAddresses: vote_addresses,
-    }
-    .abi_encode();
-
-    info!("Call data length: {}", call_data.len());
-    info!("Call data: 0x{}", hex::encode(&call_data));
-
-    let txn = new_system_call_txn(genesis_address, call_data.into());
-    txn
-}
-
-// Deploy contracts using constructor bytecode (proper deployment)
-fn deploy_all_contracts(byte_code_dir: &str) -> (impl DatabaseRef, Vec<TxEnv>) {
-    let revm_db = InMemoryDB::default();
-    let mut db = CacheDB::new(revm_db);
-    let mut txs = Vec::new();
-
-    // Add system address with balance
-    db.insert_account_info(SYSTEM_ADDRESS, SYSTEM_ACCOUNT_INFO);
-
-    for (contract_name, target_address) in CONTRACTS {
-        let hex_path = format!("{}/{}.hex", byte_code_dir, contract_name);
-        let constructor_bytecode = read_hex_from_file(&hex_path);
-
-        // Create deployment transaction
-        let deploy_txn = new_system_create_txn(&constructor_bytecode, Bytes::default());
-        txs.push(deploy_txn);
-
-        info!(
-            "Prepared deployment for {}: target address {:?}",
-            contract_name, target_address
-        );
-    }
-
-    (db, txs)
-}
 
 // Alternative approach: Use BSC-style direct bytecode deployment
 fn deploy_bsc_style(byte_code_dir: &str) -> impl DatabaseRef {
@@ -213,38 +72,12 @@ fn extract_runtime_bytecode(constructor_bytecode: &str) -> Vec<u8> {
     }
 }
 
-fn legacy_genesis_deploy(
-    byte_code_dir: &str,
-    config: &GenesisConfig,
-) -> Option<(Vec<ExecutionResult>, BundleState)> {
-    let (db, deploy_txs) = deploy_all_contracts(byte_code_dir);
-    let mut env = Env::default();
-    env.cfg.chain_id = NamedChain::Mainnet.into();
-    env.tx.gas_limit = 30_000_000;
-
-    // First deploy all contracts
-    let mut all_txs = deploy_txs;
-    all_txs.push(call_genesis_initialize(GENESIS_ADDR, &config));
-
-    match execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &all_txs, None) {
-        Ok((result, bundle_state)) => Some((result, bundle_state)),
-        Err(e2) => {
-            error!("=== Both deployment approaches failed ===");
-            error!(
-                "Constructor deployment error: {:?}",
-                e2.map_db_err(|_| "Database error".to_string())
-            );
-            panic!("Genesis execution failed with both approaches");
-            None
-        }
-    }
-}
-
 pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisConfig) {
     info!("=== Starting Genesis deployment and initialization ===");
 
     // Try BSC-style deployment first
-    let db = deploy_bsc_style(byte_code_dir);
+    let mut db = deploy_bsc_style(byte_code_dir);
+    // let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
 
     let mut env = Env::default();
     env.cfg.chain_id = NamedChain::Mainnet.into();
@@ -257,22 +90,29 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     info!("Calling Genesis initialize function...");
     let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
     txs.push(genesis_init_txn);
+    let get_validator_set_txn = call_get_validator_set();
+    txs.push(get_validator_set_txn);
+    let get_current_epoch_info_txn = call_get_current_epoch_info();
+    txs.push(get_current_epoch_info_txn);
 
-    let r = execute_revm_sequential_with_logging(db, SpecId::LATEST, env, &txs, None);
+    let r = execute_revm_sequential(db, SpecId::LATEST, env.clone(), &txs);
     let (result, mut bundle_state) = match r {
-        Ok((result, bundle_state)) => (result, bundle_state),
-        Err(e) => {
-            error!("=== BSC-style deployment failed, trying constructor deployment ===");
-            let error_msg = format!("{:?}", e.map_db_err(|_| "Database error".to_string()));
-            error!("Error: {}", error_msg);
+        Ok((result, bundle_state)) => {
+            info!("=== Genesis initialization successful ===");
+            info!("the bundle state is {:?}", bundle_state);
 
-            match legacy_genesis_deploy(byte_code_dir, &config) {
-                Some((result, bundle_state)) => (result, bundle_state),
-                None => {
-                    error!("=== Both deployment approaches failed ===");
-                    panic!("Genesis execution failed with both approaches");
-                }
+            if let Some(validator_set_result) = result.get(1) {
+                print_validator_set_result(validator_set_result, &config);
             }
+            if let Some(current_epoch_info_result) = result.get(2) {
+                print_current_epoch_info_result(current_epoch_info_result);
+            }
+
+            (result, bundle_state)
+        }
+        Err(e) => {
+            let error_msg = format!("{:?}", e.map_db_err(|_| "Database error".to_string()));
+            panic!("Error: {}", error_msg);
         }
     };
 
@@ -283,10 +123,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {
             error!("=== Transaction {} failed ===", i + 1);
-            error!("Detailed analysis: {}", analyze_revert_reason(r));
+            info!("Detailed analysis: {}", analyze_txn_result(r));
             panic!("Genesis transaction {} failed", i + 1);
         } else {
             info!("Transaction {}: succeed", i + 1);
+            info!("Detailed analysis: {}", analyze_txn_result(r));
         }
         success_count += 1;
     }
@@ -342,9 +183,10 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
             if let Some(existing) = genesis_state.get_mut(&address) {
                 existing.storage.extend(storage);
                 // Update account info if it has changed
-                if info.code.is_some() || info.balance > existing.info.balance {
-                    existing.info = info;
-                }
+                existing.info = info;
+                // if info.code.is_some() || info.balance > existing.info.balance {
+                //     existing.info = info;
+                // }
             } else {
                 genesis_state.insert(address, PlainAccount { info, storage });
             }

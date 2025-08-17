@@ -53,7 +53,13 @@ def process_value(value: Any) -> Any:
     if isinstance(value, str):
         return fix_hex_length(value)
     elif isinstance(value, dict):
-        return {k: process_value(v) for k, v in value.items()}
+        # Process both keys and values recursively
+        processed_dict = {}
+        for k, v in value.items():
+            # Fix hex strings in keys too
+            fixed_key = fix_hex_length(k) if isinstance(k, str) else k
+            processed_dict[fixed_key] = process_value(v)
+        return processed_dict
     elif isinstance(value, list):
         return [process_value(item) for item in value]
     else:
@@ -92,7 +98,12 @@ def process_file(input_file: str, output_file: str | None = None) -> None:
                 if original_len % 2 != 0:
                     hex_count += 1
             elif isinstance(obj, dict):
-                for v in obj.values():
+                # Count hex strings in both keys and values
+                for k, v in obj.items():
+                    if isinstance(k, str) and k.startswith('0x'):
+                        original_len = len(k[2:])
+                        if original_len % 2 != 0:
+                            hex_count += 1
                     count_hex_strings(v)
             elif isinstance(obj, list):
                 for item in obj:

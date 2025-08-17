@@ -26,6 +26,7 @@ contract GenesisTest is Test, TestConstants {
     uint256[] public votingPowers;
     bytes[] public validatorNetworkAddresses;
     bytes[] public fullnodeNetworkAddresses;
+    bytes[] public aptosAddresses;
 
     function setUp() public {
         // Deploy Genesis contract
@@ -45,6 +46,7 @@ contract GenesisTest is Test, TestConstants {
         votingPowers = new uint256[](3);
         validatorNetworkAddresses = new bytes[](3);
         fullnodeNetworkAddresses = new bytes[](3);
+        aptosAddresses = new bytes[](0);
 
         validatorAddresses[0] = address(0x1111);
         validatorAddresses[1] = address(0x2222);
@@ -93,7 +95,12 @@ contract GenesisTest is Test, TestConstants {
         emit Genesis.GenesisCompleted(block.timestamp, 3);
 
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -107,7 +114,12 @@ contract GenesisTest is Test, TestConstants {
         // Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert - Check that all subsystems were initialized
@@ -122,7 +134,12 @@ contract GenesisTest is Test, TestConstants {
         // Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -141,7 +158,12 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(unauthorizedCaller);
         vm.expectRevert(abi.encodeWithSelector(System.OnlySystemCaller.selector, unauthorizedCaller));
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
     }
 
@@ -149,7 +171,12 @@ contract GenesisTest is Test, TestConstants {
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         assertTrue(genesis.isGenesisCompleted());
@@ -161,7 +188,12 @@ contract GenesisTest is Test, TestConstants {
         // Arrange - Complete genesis first
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
         assertTrue(genesis.isGenesisCompleted());
 
@@ -169,7 +201,12 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
     }
 
@@ -182,12 +219,18 @@ contract GenesisTest is Test, TestConstants {
         uint256[] memory emptyPowers = new uint256[](0);
         bytes[] memory emptyValidatorNetworkAddresses = new bytes[](0);
         bytes[] memory emptyFullnodeNetworkAddresses = new bytes[](0);
+        bytes[] memory emptyAptosAddresses = new bytes[](0);
 
         // Act & Assert
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.InvalidInitialValidators.selector);
         genesis.initialize(
-            emptyValidators, emptyConsensus, emptyPowers, emptyValidatorNetworkAddresses, emptyFullnodeNetworkAddresses
+            emptyValidators,
+            emptyConsensus,
+            emptyPowers,
+            emptyValidatorNetworkAddresses,
+            emptyFullnodeNetworkAddresses,
+            emptyAptosAddresses
         );
     }
 
@@ -198,6 +241,7 @@ contract GenesisTest is Test, TestConstants {
         uint256[] memory singlePower = new uint256[](1);
         bytes[] memory singleValidatorNetworkAddresses = new bytes[](1);
         bytes[] memory singleFullnodeNetworkAddresses = new bytes[](1);
+        bytes[] memory singleAptosAddresses = new bytes[](0);
 
         singleValidator[0] = address(0x1111);
         singleConsensus[0] = abi.encodePacked(bytes32(uint256(0x2222)));
@@ -212,7 +256,8 @@ contract GenesisTest is Test, TestConstants {
             singleConsensus,
             singlePower,
             singleValidatorNetworkAddresses,
-            singleFullnodeNetworkAddresses
+            singleFullnodeNetworkAddresses,
+            singleAptosAddresses
         );
 
         // Assert
@@ -227,6 +272,7 @@ contract GenesisTest is Test, TestConstants {
         uint256[] memory largeVotingPowers = new uint256[](validatorCount);
         bytes[] memory largeValidatorNetworkAddresses = new bytes[](validatorCount);
         bytes[] memory largeFullnodeNetworkAddresses = new bytes[](validatorCount);
+        bytes[] memory largeAptosAddresses = new bytes[](0);
 
         for (uint256 i = 0; i < validatorCount; i++) {
             largeValidatorAddresses[i] = address(uint160(0x1000 + i));
@@ -245,7 +291,8 @@ contract GenesisTest is Test, TestConstants {
             largeConsensusPublicKeys,
             largeVotingPowers,
             largeValidatorNetworkAddresses,
-            largeFullnodeNetworkAddresses
+            largeFullnodeNetworkAddresses,
+            largeAptosAddresses
         );
 
         // Assert
@@ -261,7 +308,12 @@ contract GenesisTest is Test, TestConstants {
         // Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -277,7 +329,12 @@ contract GenesisTest is Test, TestConstants {
         // Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -288,7 +345,12 @@ contract GenesisTest is Test, TestConstants {
         // Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -306,7 +368,12 @@ contract GenesisTest is Test, TestConstants {
         // Arrange & Act
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert
@@ -325,7 +392,12 @@ contract GenesisTest is Test, TestConstants {
         vm.expectEmit(true, true, true, true);
         emit Genesis.GenesisCompleted(expectedTimestamp, expectedValidatorCount);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
     }
 
@@ -336,7 +408,12 @@ contract GenesisTest is Test, TestConstants {
         // Act - Complete genesis
         vm.prank(SYSTEM_CALLER);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert - Verify final state
@@ -346,7 +423,12 @@ contract GenesisTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(Genesis.GenesisAlreadyCompleted.selector);
         genesis.initialize(
-            validatorAddresses, consensusPublicKeys, votingPowers, validatorNetworkAddresses, fullnodeNetworkAddresses
+            validatorAddresses,
+            consensusPublicKeys,
+            votingPowers,
+            validatorNetworkAddresses,
+            fullnodeNetworkAddresses,
+            aptosAddresses
         );
     }
 
@@ -399,7 +481,8 @@ contract GenesisTest is Test, TestConstants {
             realisticConsensusPublicKeys,
             realisticPowers,
             realisticValidatorNetworkAddresses,
-            realisticFullnodeNetworkAddresses
+            realisticFullnodeNetworkAddresses,
+            aptosAddresses
         );
 
         // Assert

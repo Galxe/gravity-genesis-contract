@@ -86,10 +86,10 @@ python3 generate/fix_hex_length.py input.json [output.json]
 ```json
 {
   "validatorAddresses": ["0x..."],
-  "consensusAddresses": ["0x..."],
-  "feeAddresses": ["0x..."],
-  "votingPowers": ["1000000000000000000000"],
-  "voteAddresses": ["0x..."]
+  "consensusPublicKeys": ["0x..."],
+  "votingPowers": ["1"],
+  "validatorNetworkAddresses": ["0x..."],
+  "fullnodeNetworkAddresses": [""]
 }
 ```
 

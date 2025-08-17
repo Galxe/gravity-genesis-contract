@@ -13,6 +13,10 @@ contract Timestamp is System, ITimestamp {
     uint64 public constant MICRO_CONVERSION_FACTOR = 1_000_000;
     uint64 public microseconds;
 
+    function initialize() external onlyGenesis {
+        microseconds = 0;
+    }
+
     /**
      * @dev Updates global time through consensus, requires VM permission, called during block prologue
      * Corresponds exactly to Aptos's update_global_time function
