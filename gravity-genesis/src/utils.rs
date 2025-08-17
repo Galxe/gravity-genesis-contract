@@ -127,14 +127,22 @@ pub(crate) fn execute_revm_sequential<DB>(
     spec_id: SpecId,
     env: Env,
     txs: &[TxEnv],
+    pre_bundle: Option<BundleState>,
 ) -> Result<(Vec<ExecutionResult>, BundleState), EVMError<DB::Error>>
 where
     DB: DatabaseRef,
 {
-    let db = StateBuilder::new()
-        .with_bundle_update()
-        .with_database_ref(db)
-        .build();
+    let db = if let Some(pre_bundle) = pre_bundle {
+        StateBuilder::new()
+            .with_bundle_prestate(pre_bundle)
+            .with_database_ref(db)
+            .build()
+    } else {
+        StateBuilder::new()
+            .with_bundle_update()
+            .with_database_ref(db)
+            .build()
+    };
     let mut evm = EvmBuilder::default()
         .with_db(db)
         .with_spec_id(spec_id)
