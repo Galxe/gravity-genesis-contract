@@ -1,17 +1,19 @@
 use crate::{
     genesis::{
-        call_genesis_initialize, call_get_current_epoch_info, call_get_validator_set, print_current_epoch_info_result, print_validator_set_result, GenesisConfig
+        GenesisConfig, call_genesis_initialize, call_get_current_epoch_info,
+        call_get_validator_set, print_current_epoch_info_result, print_validator_set_result,
     },
     utils::{
-        analyze_txn_result, execute_revm_sequential, read_hex_from_file, CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS
+        CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
+        execute_revm_sequential, execute_revm_sequential_with_bundle, read_hex_from_file,
     },
 };
 
 use alloy_chains::NamedChain;
 
 use revm::{
-    DatabaseRef, InMemoryDB, StateBuilder,
-    db::{CacheDB, PlainAccount},
+    InMemoryDB,
+    db::PlainAccount,
     primitives::{AccountInfo, Env, SpecId},
 };
 use revm_primitives::{Bytecode, Bytes, hex};
@@ -19,9 +21,8 @@ use std::{collections::HashMap, fs::File, io::BufWriter};
 use tracing::{debug, error, info, warn};
 
 // Alternative approach: Use BSC-style direct bytecode deployment
-fn deploy_bsc_style(byte_code_dir: &str) -> impl DatabaseRef {
-    let revm_db = InMemoryDB::default();
-    let mut db = CacheDB::new(revm_db);
+fn deploy_bsc_style(byte_code_dir: &str) -> InMemoryDB {
+    let mut db = InMemoryDB::default();
 
     // Add system address with balance
     db.insert_account_info(SYSTEM_ADDRESS, SYSTEM_ACCOUNT_INFO);
@@ -76,7 +77,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     info!("=== Starting Genesis deployment and initialization ===");
 
     // Try BSC-style deployment first
-    let mut db = deploy_bsc_style(byte_code_dir);
+    let db = deploy_bsc_style(byte_code_dir);
     // let mut wrapped_db = StateBuilder::new().with_database_ref(db).build();
 
     let mut env = Env::default();
@@ -89,13 +90,16 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     // Call Genesis initialize function
     info!("Calling Genesis initialize function...");
     let genesis_init_txn = call_genesis_initialize(GENESIS_ADDR, &config);
+    let mut all_txs = vec![];
     txs.push(genesis_init_txn);
     let get_validator_set_txn = call_get_validator_set();
+    all_txs.push(get_validator_set_txn.clone());
     txs.push(get_validator_set_txn);
     let get_current_epoch_info_txn = call_get_current_epoch_info();
+    all_txs.push(get_current_epoch_info_txn.clone());
     txs.push(get_current_epoch_info_txn);
 
-    let r = execute_revm_sequential(db, SpecId::LATEST, env.clone(), &txs);
+    let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs);
     let (result, mut bundle_state) = match r {
         Ok((result, bundle_state)) => {
             info!("=== Genesis initialization successful ===");
@@ -118,6 +122,26 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
 
     info!("=== Bundle state ===");
     info!("{:?}", bundle_state);
+    let new_re = execute_revm_sequential_with_bundle(
+        db,
+        SpecId::LATEST,
+        env.clone(),
+        &all_txs,
+        bundle_state.clone(),
+    );
+    match new_re {
+        Ok((result, _)) => {
+            if let Some(validator_set_result) = result.get(0) {
+                print_validator_set_result(validator_set_result, &config);
+            }
+            if let Some(current_epoch_info_result) = result.get(1) {
+                print_current_epoch_info_result(current_epoch_info_result);
+            }
+        }
+        Err(e) => {
+            error!("Error: {:?}", e);
+        }
+    }
 
     let mut success_count = 0;
     for (i, r) in result.iter().enumerate() {
@@ -162,7 +186,7 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     }
 
     // Add any state changes from the bundle_state (from the initialize transaction)
-    bundle_state.state.remove(&SYSTEM_ADDRESS);
+    bundle_state.state.remove(&SYSTEM_ADDRESS);    
     // write bundle state into one json file named bundle_state.json
     serde_json::to_writer_pretty(
         BufWriter::new(File::create(format!("{output_dir}/bundle_state.json")).unwrap()),
@@ -170,6 +194,11 @@ pub fn genesis_generate(byte_code_dir: &str, output_dir: &str, config: GenesisCo
     )
     .unwrap();
 
+    info!(
+        "bundle state size is {:?}, contracts size {:?}",
+        bundle_state.state.len(),
+        CONTRACTS.len()
+    );
     for (address, account) in bundle_state.state.into_iter() {
         debug!("Address: {:?}, account: {:?}", address, account);
         if let Some(info) = account.info {
