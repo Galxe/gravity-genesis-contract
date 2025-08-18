@@ -1,6 +1,6 @@
 use revm::{DatabaseRef, InMemoryDB, db::BundleState};
-use revm_primitives::SpecId;
-use tracing::error;
+use revm_primitives::{ExecutionResult, SpecId, hex};
+use tracing::{error, info};
 
 use crate::{
     execute::prepare_env,
@@ -14,6 +14,37 @@ use crate::{
     },
     utils::execute_revm_sequential,
 };
+
+/// Generic template for handling execution results
+///
+/// This function provides a common structure for all print_* functions,
+/// reducing code duplication and making the codebase more maintainable.
+pub fn handle_execution_result<F>(result: &ExecutionResult, function_name: &str, success_handler: F)
+where
+    F: FnOnce(&[u8]),
+{
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+
+            info!("=== {} call successful ===", function_name);
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+
+            success_handler(output_bytes);
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("{} call reverted", function_name);
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("{} call halted: {:?}", function_name, reason);
+        }
+    }
+}
 
 fn verify_validator_set(db: impl DatabaseRef, bundle_state: BundleState, config: &GenesisConfig) {
     let mut all_txs = vec![];

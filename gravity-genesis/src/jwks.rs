@@ -8,7 +8,10 @@ use revm_primitives::{ExecutionResult, hex};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, warn};
 
-use crate::utils::{JWK_MANAGER_ADDR, execute_revm_sequential, new_system_call_txn};
+use crate::{
+    post_genesis::handle_execution_result,
+    utils::{JWK_MANAGER_ADDR, execute_revm_sequential, new_system_call_txn},
+};
 
 // JSON structures for deserialization
 #[derive(Debug, Deserialize, Serialize)]
@@ -284,84 +287,54 @@ pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
 
 pub fn print_jwks_result(result: &ExecutionResult, jwks_file: &str) {
     let provider_jwks_array = read_jwks_from_file(jwks_file).unwrap();
-    // 比较result里面的内容
-    match result {
-        ExecutionResult::Success { output, .. } => {
-            let output_bytes = match output {
-                revm_primitives::Output::Call(bytes) => bytes,
-                revm_primitives::Output::Create(bytes, _) => bytes,
-            };
 
-            info!("=== getCurrentEpochInfo call successful ===");
-            info!("Output length: {} bytes", output_bytes.len());
-            info!("Raw output: 0x{}", hex::encode(output_bytes));
+    handle_execution_result(result, "getObservedJWKs", |output_bytes| {
+        let solidity_current_epoch_info =
+            getObservedJWKsCall::abi_decode_returns(output_bytes, false).unwrap();
+        let result_jwks = solidity_current_epoch_info._0.entries;
 
-            let solidity_current_epoch_info =
-                getObservedJWKsCall::abi_decode_returns(output_bytes, false).unwrap();
-            let result_jwks = solidity_current_epoch_info._0.entries;
-            // 和provider_jwks_array进行比较
-            for (_i, provider) in result_jwks.iter().enumerate() {
-                let provider_jwks = provider_jwks_array
-                    .iter()
-                    .find(|p| p.issuer == provider.issuer);
-                if let Some(provider_jwks) = provider_jwks {
-                    assert_eq!(provider_jwks.version, provider.version);
-                    assert_eq!(provider_jwks.jwks.len(), provider.jwks.len());
-                    for (j, jwk) in provider_jwks.jwks.iter().enumerate() {
-                        assert_eq!(jwk.variant, provider.jwks[j].variant);
-                        assert_eq!(jwk.data, provider.jwks[j].data);
-                    }
+        // 和provider_jwks_array进行比较
+        for (_i, provider) in result_jwks.iter().enumerate() {
+            let provider_jwks = provider_jwks_array
+                .iter()
+                .find(|p| p.issuer == provider.issuer);
+            if let Some(provider_jwks) = provider_jwks {
+                assert_eq!(provider_jwks.version, provider.version);
+                assert_eq!(provider_jwks.jwks.len(), provider.jwks.len());
+                for (j, jwk) in provider_jwks.jwks.iter().enumerate() {
+                    assert_eq!(jwk.variant, provider.jwks[j].variant);
+                    assert_eq!(jwk.data, provider.jwks[j].data);
                 }
             }
         }
-        ExecutionResult::Revert { output, .. } => {
-            error!("getValidatorSet call reverted");
-            error!("Revert output: 0x{}", hex::encode(output));
-        }
-        ExecutionResult::Halt { reason, .. } => {
-            error!("getValidatorSet call halted: {:?}", reason);
-        }
-    }
+    });
 }
 
 pub fn print_oidc_providers_result(result: &ExecutionResult, oidc_providers_file: &str) {
     let expected_providers = read_oidc_providers_from_file(oidc_providers_file).unwrap();
-    match result {
-        ExecutionResult::Success { output, .. } => {
-            let output_bytes = match output {
-                revm_primitives::Output::Call(bytes) => bytes,
-                revm_primitives::Output::Create(bytes, _) => bytes,
-            };
-            info!("=== getActiveProviders call successful ===");
-            info!("Output length: {} bytes", output_bytes.len());
-            info!("Raw output: 0x{}", hex::encode(output_bytes));
-            let solidity_active_providers =
-                getActiveProvidersCall::abi_decode_returns(output_bytes, false).unwrap();
-            let result_providers = solidity_active_providers._0;
-            info!("Retrieved {} active providers", result_providers.len());
-            for (i, provider) in result_providers.iter().enumerate() {
-                info!("Provider {}: {}", i + 1, provider.name);
-                info!("  Config URL: {}", provider.configUrl);
-                info!("  Active: {}", provider.active);
-                let expected_provider = expected_providers.iter().find(|p| p.name == provider.name);
-                if let Some(expected) = expected_provider {
-                    assert_eq!(expected.name, provider.name);
-                    assert_eq!(expected.configUrl, provider.configUrl);
-                    assert_eq!(expected.active, provider.active);
-                    info!("  ✓ Provider verified successfully");
-                } else {
-                    info!("  ⚠ Provider not found in expected data");
-                }
+
+    handle_execution_result(result, "getActiveProviders", |output_bytes| {
+        let solidity_active_providers =
+            getActiveProvidersCall::abi_decode_returns(output_bytes, false).unwrap();
+        let result_providers = solidity_active_providers._0;
+
+        info!("Retrieved {} active providers", result_providers.len());
+        for (i, provider) in result_providers.iter().enumerate() {
+            info!("Provider {}: {}", i + 1, provider.name);
+            info!("  Config URL: {}", provider.configUrl);
+            info!("  Active: {}", provider.active);
+
+            let expected_provider = expected_providers.iter().find(|p| p.name == provider.name);
+            if let Some(expected) = expected_provider {
+                assert_eq!(expected.name, provider.name);
+                assert_eq!(expected.configUrl, provider.configUrl);
+                assert_eq!(expected.active, provider.active);
+                info!("  ✓ Provider verified successfully");
+            } else {
+                info!("  ⚠ Provider not found in expected data");
             }
         }
-        ExecutionResult::Revert { output, .. } => {
-            error!("getActiveProviders call reverted");
-            error!("Revert output: 0x{}", hex::encode(output));
-        }
-        ExecutionResult::Halt { reason, .. } => {
-            error!("getActiveProviders call halted: {:?}", reason);
-        }
-    }
+    });
 }
 
 /// Execute JWK management operations
