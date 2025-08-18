@@ -155,7 +155,7 @@ async fn run_main_logic(args: &Args) -> Result<()> {
         args.jwks_file.clone(),
     );
 
-    post_genesis::verify_result(db, bundle_state, &config);
+    post_genesis::verify_result(db, bundle_state, &config, args.jwks_file.clone());
 
     info!("Gravity Genesis Binary completed successfully");
     Ok(())

@@ -4,9 +4,9 @@ use revm::{
     db::BundleState,
     primitives::{Env, SpecId, TxEnv},
 };
-use revm_primitives::hex;
+use revm_primitives::{ExecutionResult, hex};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::utils::{JWK_MANAGER_ADDR, execute_revm_sequential, new_system_call_txn};
 
@@ -95,10 +95,7 @@ pub fn call_get_observed_jwks() -> TxEnv {
     new_system_call_txn(JWK_MANAGER_ADDR, call_data.into())
 }
 
-pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
-    info!("=== Loading JWKs from file: {} ===", jwks_file_path);
-
-    // Read and parse the JSON file
+pub fn read_jwks_from_file(jwks_file_path: &str) -> Result<Vec<ProviderJWKs>, String> {
     let jwks_content = std::fs::read_to_string(jwks_file_path)
         .map_err(|e| format!("Failed to read JWKS file: {}", e))?;
 
@@ -156,7 +153,13 @@ pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
         })
         .collect();
 
-    let provider_jwks_array = provider_jwks_array?;
+    Ok(provider_jwks_array?)
+}
+
+pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
+    info!("=== Loading JWKs from file: {} ===", jwks_file_path);
+
+    let provider_jwks_array = read_jwks_from_file(jwks_file_path)?;
 
     info!("Converted to Solidity structure");
     info!("Provider JWKs array length: {}", provider_jwks_array.len());
@@ -172,6 +175,48 @@ pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
     info!("JWK upsert transaction prepared successfully");
 
     Ok(upsert_tx)
+}
+
+pub fn print_jwks_result(result: &ExecutionResult, jwks_file: &str) {
+    let provider_jwks_array = read_jwks_from_file(jwks_file).unwrap();
+    // 比较result里面的内容
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+
+            info!("=== getCurrentEpochInfo call successful ===");
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+
+            let solidity_current_epoch_info =
+                getObservedJWKsCall::abi_decode_returns(output_bytes, false).unwrap();
+            let result_jwks = solidity_current_epoch_info._0.entries;
+            // 和provider_jwks_array进行比较
+            for (i, provider) in result_jwks.iter().enumerate() {
+                let provider_jwks = provider_jwks_array
+                    .iter()
+                    .find(|p| p.issuer == provider.issuer);
+                if let Some(provider_jwks) = provider_jwks {
+                    assert_eq!(provider_jwks.version, provider.version);
+                    assert_eq!(provider_jwks.jwks.len(), provider.jwks.len());
+                    for (j, jwk) in provider_jwks.jwks.iter().enumerate() {
+                        assert_eq!(jwk.variant, provider.jwks[j].variant);
+                        assert_eq!(jwk.data, provider.jwks[j].data);
+                    }
+                }
+            }
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("getValidatorSet call reverted");
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("getValidatorSet call halted: {:?}", reason);
+        }
+    }
 }
 
 /// Execute JWK management operations
