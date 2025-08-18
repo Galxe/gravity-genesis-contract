@@ -29,7 +29,27 @@ pub struct JsonAllProvidersJWKs {
     pub entries: Vec<JsonProviderJWKs>,
 }
 
+// JSON structures for OIDC Provider deserialization
+#[derive(Debug, Deserialize, Serialize)]
+pub struct JsonOIDCProvider {
+    pub name: String,
+    pub configUrl: String,
+    pub active: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct JsonOIDCProviders {
+    pub providers: Vec<JsonOIDCProvider>,
+}
+
 sol! {
+    struct OIDCProvider {
+        string name; // Provider name, e.g., "https://accounts.google.com"
+        string configUrl; // OpenID configuration URL
+        bool active; // Whether the provider is active
+    }
+    function upsertOIDCProvider(string calldata name, string calldata configUrl) external;
+    function getActiveProviders() external view returns (OIDCProvider[] memory);
     struct JWK {
         uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
         bytes data; // Encoded JWK data
@@ -95,6 +115,22 @@ pub fn call_get_observed_jwks() -> TxEnv {
     new_system_call_txn(JWK_MANAGER_ADDR, call_data.into())
 }
 
+/// Call upsertOIDCProvider function
+pub fn call_upsert_oidc_provider(name: String, config_url: String) -> TxEnv {
+    let call_data = upsertOIDCProviderCall {
+        name,
+        configUrl: config_url,
+    }
+    .abi_encode();
+    new_system_call_txn(JWK_MANAGER_ADDR, call_data.into())
+}
+
+/// Call getActiveProviders function
+pub fn call_get_active_providers() -> TxEnv {
+    let call_data = getActiveProvidersCall {}.abi_encode();
+    new_system_call_txn(JWK_MANAGER_ADDR, call_data.into())
+}
+
 pub fn read_jwks_from_file(jwks_file_path: &str) -> Result<Vec<ProviderJWKs>, String> {
     let jwks_content = std::fs::read_to_string(jwks_file_path)
         .map_err(|e| format!("Failed to read JWKS file: {}", e))?;
@@ -156,6 +192,75 @@ pub fn read_jwks_from_file(jwks_file_path: &str) -> Result<Vec<ProviderJWKs>, St
     Ok(provider_jwks_array?)
 }
 
+/// Read OIDC providers from JSON file
+pub fn read_oidc_providers_from_file(
+    provider_file_path: &str,
+) -> Result<Vec<OIDCProvider>, String> {
+    let provider_content = std::fs::read_to_string(provider_file_path)
+        .map_err(|e| format!("Failed to read OIDC provider file: {}", e))?;
+
+    let providers: JsonOIDCProviders = serde_json::from_str(&provider_content)
+        .map_err(|e| format!("Failed to parse OIDC provider file: {}", e))?;
+
+    info!("Successfully loaded OIDC providers from file");
+    info!("Total providers: {}", providers.providers.len());
+
+    for (i, provider) in providers.providers.iter().enumerate() {
+        info!("Provider {}: {}", i + 1, provider.name);
+        info!("  Config URL: {}", provider.configUrl);
+        info!("  Active: {}", provider.active);
+    }
+
+    // Convert JSON structure to Solidity structure
+    let oidc_providers: Vec<OIDCProvider> = providers
+        .providers
+        .into_iter()
+        .map(|provider| OIDCProvider {
+            name: provider.name,
+            configUrl: provider.configUrl,
+            active: provider.active,
+        })
+        .collect();
+
+    Ok(oidc_providers)
+}
+
+/// Upsert OIDC providers from file
+pub fn upsert_oidc_providers(provider_file_path: &str) -> Result<Vec<TxEnv>, String> {
+    info!(
+        "=== Loading OIDC providers from file: {} ===",
+        provider_file_path
+    );
+
+    let oidc_providers = read_oidc_providers_from_file(provider_file_path)?;
+
+    info!("Converted to Solidity structure");
+    info!("OIDC providers count: {}", oidc_providers.len());
+
+    // Create transactions for each provider
+    let mut transactions = Vec::new();
+    for provider in oidc_providers {
+        let tx = call_upsert_oidc_provider(provider.name, provider.configUrl);
+        transactions.push(tx);
+    }
+
+    info!(
+        "Created {} upsertOIDCProvider transactions",
+        transactions.len()
+    );
+    for (i, tx) in transactions.iter().enumerate() {
+        info!(
+            "Transaction {}: data length: {} bytes",
+            i + 1,
+            tx.data.len()
+        );
+    }
+
+    info!("OIDC provider upsert transactions prepared successfully");
+
+    Ok(transactions)
+}
+
 pub fn upsert_observed_jwks(jwks_file_path: &str) -> Result<TxEnv, String> {
     info!("=== Loading JWKs from file: {} ===", jwks_file_path);
 
@@ -195,7 +300,7 @@ pub fn print_jwks_result(result: &ExecutionResult, jwks_file: &str) {
                 getObservedJWKsCall::abi_decode_returns(output_bytes, false).unwrap();
             let result_jwks = solidity_current_epoch_info._0.entries;
             // 和provider_jwks_array进行比较
-            for (i, provider) in result_jwks.iter().enumerate() {
+            for (_i, provider) in result_jwks.iter().enumerate() {
                 let provider_jwks = provider_jwks_array
                     .iter()
                     .find(|p| p.issuer == provider.issuer);
@@ -215,6 +320,46 @@ pub fn print_jwks_result(result: &ExecutionResult, jwks_file: &str) {
         }
         ExecutionResult::Halt { reason, .. } => {
             error!("getValidatorSet call halted: {:?}", reason);
+        }
+    }
+}
+
+pub fn print_oidc_providers_result(result: &ExecutionResult, oidc_providers_file: &str) {
+    let expected_providers = read_oidc_providers_from_file(oidc_providers_file).unwrap();
+    match result {
+        ExecutionResult::Success { output, .. } => {
+            let output_bytes = match output {
+                revm_primitives::Output::Call(bytes) => bytes,
+                revm_primitives::Output::Create(bytes, _) => bytes,
+            };
+            info!("=== getActiveProviders call successful ===");
+            info!("Output length: {} bytes", output_bytes.len());
+            info!("Raw output: 0x{}", hex::encode(output_bytes));
+            let solidity_active_providers =
+                getActiveProvidersCall::abi_decode_returns(output_bytes, false).unwrap();
+            let result_providers = solidity_active_providers._0;
+            info!("Retrieved {} active providers", result_providers.len());
+            for (i, provider) in result_providers.iter().enumerate() {
+                info!("Provider {}: {}", i + 1, provider.name);
+                info!("  Config URL: {}", provider.configUrl);
+                info!("  Active: {}", provider.active);
+                let expected_provider = expected_providers.iter().find(|p| p.name == provider.name);
+                if let Some(expected) = expected_provider {
+                    assert_eq!(expected.name, provider.name);
+                    assert_eq!(expected.configUrl, provider.configUrl);
+                    assert_eq!(expected.active, provider.active);
+                    info!("  ✓ Provider verified successfully");
+                } else {
+                    info!("  ⚠ Provider not found in expected data");
+                }
+            }
+        }
+        ExecutionResult::Revert { output, .. } => {
+            error!("getActiveProviders call reverted");
+            error!("Revert output: 0x{}", hex::encode(output));
+        }
+        ExecutionResult::Halt { reason, .. } => {
+            error!("getActiveProviders call halted: {:?}", reason);
         }
     }
 }
@@ -294,7 +439,37 @@ sol! {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use crate::{
+        execute,
+        genesis::GenesisConfig,
+        post_genesis::{verify_jwks, verify_oidc_providers},
+    };
+
     use super::*;
+
+    #[test]
+    fn test_after_genesis() {
+        let config_content = fs::read_to_string(
+            "/home/jingyue/projects/gravity-genesis-contract/generate/genesis_config.json",
+        )
+        .unwrap();
+        let config: GenesisConfig = serde_json::from_str(&config_content).unwrap();
+        let jwk_file_path =
+            "/home/jingyue/projects/gravity-genesis-contract/generate/jwks_template.json";
+        let oidc_file_path =
+            "/home/jingyue/projects/gravity-genesis-contract/generate/jwks_provider.json";
+        let (db, bundle_state) = execute::genesis_generate(
+            &"/home/jingyue/projects/gravity-genesis-contract/out",
+            &"/home/jingyue/projects/gravity-genesis-contract/output",
+            &config,
+            Some(jwk_file_path.to_string()),
+            Some(oidc_file_path.to_string()),
+        );
+        verify_jwks(db.clone(), bundle_state.clone(), jwk_file_path);
+        verify_oidc_providers(db.clone(), bundle_state.clone(), oidc_file_path);
+    }
 
     #[test]
     fn test_jwk_creation() {
@@ -349,6 +524,48 @@ mod tests {
         let result = upsert_observed_jwks("nonexistent_file.json");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Failed to read JWKS file"));
+    }
+
+    #[test]
+    fn test_oidc_provider_parsing() {
+        // Test JSON parsing with a simple OIDC provider structure
+        let json_content = r#"{
+            "providers": [
+                {
+                    "name": "https://test.com",
+                    "configUrl": "https://test.com/.well-known/openid_configuration",
+                    "active": true
+                },
+                {
+                    "name": "https://test2.com",
+                    "configUrl": "https://test2.com/.well-known/openid_configuration",
+                    "active": false
+                }
+            ]
+        }"#;
+
+        let providers: JsonOIDCProviders = serde_json::from_str(json_content).unwrap();
+        assert_eq!(providers.providers.len(), 2);
+        assert_eq!(providers.providers[0].name, "https://test.com");
+        assert_eq!(
+            providers.providers[0].configUrl,
+            "https://test.com/.well-known/openid_configuration"
+        );
+        assert_eq!(providers.providers[0].active, true);
+        assert_eq!(providers.providers[1].name, "https://test2.com");
+        assert_eq!(providers.providers[1].active, false);
+    }
+
+    #[test]
+    fn test_upsert_oidc_providers() {
+        // This test would require a real file, so we'll just test the function signature
+        let result = upsert_oidc_providers("nonexistent_provider_file.json");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .contains("Failed to read OIDC provider file")
+        );
     }
 }
 

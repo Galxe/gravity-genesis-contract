@@ -65,6 +65,10 @@ struct Args {
     /// JWKs file path (optional)
     #[arg(short, long)]
     jwks_file: Option<String>,
+
+    /// OIDC providers file path (optional)
+    #[arg(short, long)]
+    oidc_providers_file: Option<String>,
 }
 
 #[tokio::main]
@@ -153,9 +157,16 @@ async fn run_main_logic(args: &Args) -> Result<()> {
         &args.output.as_ref().unwrap(),
         &config,
         args.jwks_file.clone(),
+        args.oidc_providers_file.clone(),
     );
 
-    post_genesis::verify_result(db, bundle_state, &config, args.jwks_file.clone());
+    post_genesis::verify_result(
+        db,
+        bundle_state,
+        &config,
+        args.jwks_file.clone(),
+        args.oidc_providers_file.clone(),
+    );
 
     info!("Gravity Genesis Binary completed successfully");
     Ok(())

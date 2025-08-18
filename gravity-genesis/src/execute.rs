@@ -1,6 +1,6 @@
 use crate::{
     genesis::{GenesisConfig, call_genesis_initialize},
-    jwks::upsert_observed_jwks,
+    jwks::{upsert_observed_jwks, upsert_oidc_providers},
     utils::{
         CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
         execute_revm_sequential, read_hex_from_file,
@@ -14,7 +14,7 @@ use revm::{
     db::{BundleState, PlainAccount},
     primitives::{AccountInfo, Env, SpecId},
 };
-use revm_primitives::{Bytecode, Bytes, hex};
+use revm_primitives::{Bytecode, Bytes, TxEnv, hex};
 use std::{collections::HashMap, fs::File, io::BufWriter};
 use tracing::{debug, error, info, warn};
 
@@ -83,6 +83,7 @@ pub fn genesis_generate(
     output_dir: &str,
     config: &GenesisConfig,
     jwks_file: Option<String>,
+    oidc_providers_file: Option<String>,
 ) -> (InMemoryDB, BundleState) {
     info!("=== Starting Genesis deployment and initialization ===");
 
@@ -90,13 +91,21 @@ pub fn genesis_generate(
 
     let env = prepare_env();
 
-    let txs = if let Some(jwks_file) = jwks_file {
+    let mut txs = if let Some(jwks_file) = jwks_file {
         vec![
             call_genesis_initialize(GENESIS_ADDR, config),
             upsert_observed_jwks(&jwks_file).expect("Failed to upsert observed JWKs"),
         ]
     } else {
         vec![call_genesis_initialize(GENESIS_ADDR, config)]
+    };
+    let txs: Vec<TxEnv> = if let Some(oidc_providers_file) = oidc_providers_file {
+        txs.extend(
+            upsert_oidc_providers(&oidc_providers_file).expect("Failed to upsert OIDC providers"),
+        );
+        txs
+    } else {
+        txs
     };
 
     let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs, None);
