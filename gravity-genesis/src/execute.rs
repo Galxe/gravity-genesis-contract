@@ -78,6 +78,61 @@ pub fn prepare_env() -> Env {
     env
 }
 
+/// Transaction builder for genesis initialization
+struct GenesisTransactionBuilder {
+    transactions: Vec<TxEnv>,
+}
+
+impl GenesisTransactionBuilder {
+    fn new(config: &GenesisConfig) -> Self {
+        let transactions = vec![call_genesis_initialize(GENESIS_ADDR, config)];
+        Self { transactions }
+    }
+
+    fn with_jwks(mut self, jwks_file: Option<String>) -> Self {
+        if let Some(jwks_file) = jwks_file {
+            let jwks_tx = upsert_observed_jwks(&jwks_file).expect("Failed to upsert observed JWKs");
+            self.transactions.push(jwks_tx);
+            info!("Added JWKs transaction from file: {}", jwks_file);
+        }
+        self
+    }
+
+    fn with_oidc_providers(mut self, oidc_providers_file: Option<String>) -> Self {
+        if let Some(oidc_providers_file) = oidc_providers_file {
+            let oidc_txs = upsert_oidc_providers(&oidc_providers_file)
+                .expect("Failed to upsert OIDC providers");
+            let oidc_txs_count = oidc_txs.len();
+            self.transactions.extend(oidc_txs);
+            info!(
+                "Added {} OIDC provider transactions from file: {}",
+                oidc_txs_count, oidc_providers_file
+            );
+        }
+        self
+    }
+
+    fn build(self) -> Vec<TxEnv> {
+        info!(
+            "Built {} total genesis transactions",
+            self.transactions.len()
+        );
+        self.transactions
+    }
+}
+
+/// Build genesis transactions using builder pattern
+fn build_genesis_transactions(
+    config: &GenesisConfig,
+    jwks_file: Option<String>,
+    oidc_providers_file: Option<String>,
+) -> Vec<TxEnv> {
+    GenesisTransactionBuilder::new(config)
+        .with_jwks(jwks_file)
+        .with_oidc_providers(oidc_providers_file)
+        .build()
+}
+
 pub fn genesis_generate(
     byte_code_dir: &str,
     output_dir: &str,
@@ -91,22 +146,7 @@ pub fn genesis_generate(
 
     let env = prepare_env();
 
-    let mut txs = if let Some(jwks_file) = jwks_file {
-        vec![
-            call_genesis_initialize(GENESIS_ADDR, config),
-            upsert_observed_jwks(&jwks_file).expect("Failed to upsert observed JWKs"),
-        ]
-    } else {
-        vec![call_genesis_initialize(GENESIS_ADDR, config)]
-    };
-    let txs: Vec<TxEnv> = if let Some(oidc_providers_file) = oidc_providers_file {
-        txs.extend(
-            upsert_oidc_providers(&oidc_providers_file).expect("Failed to upsert OIDC providers"),
-        );
-        txs
-    } else {
-        txs
-    };
+    let txs = build_genesis_transactions(config, jwks_file, oidc_providers_file);
 
     let r = execute_revm_sequential(db.clone(), SpecId::LATEST, env.clone(), &txs, None);
     let (result, mut bundle_state) = match r {
