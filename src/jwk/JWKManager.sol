@@ -181,7 +181,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
 
-        emit ObservedJWKsUpdated(block.number, keccak256(abi.encode(observedJWKs)));
+        emit ObservedJWKsUpdated(block.number, observedJWKs.entries);
     }
 
     /// @inheritdoc IJWKManager
@@ -190,7 +190,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     ) external onlyGov validIssuer(issuer) {
         _removeIssuer(observedJWKs, issuer);
         _regeneratePatchedJWKs();
-        emit ObservedJWKsUpdated(block.number, keccak256(abi.encode(observedJWKs)));
+        emit ObservedJWKsUpdated(block.number, observedJWKs.entries);
     }
 
     // ======== Patch Management ========
