@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "@src/System.sol";
 import "@src/access/Protectable.sol";
 import "@src/interfaces/IParamSubscriber.sol";
+import "@src/interfaces/IEpochManager.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 import "@src/interfaces/IJWKManager.sol";
@@ -181,7 +182,8 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
 
-        emit ObservedJWKsUpdated(block.number, observedJWKs.entries);
+        // 获取current epoch才对
+        emit ObservedJWKsUpdated(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch(), observedJWKs.entries);
     }
 
     /// @inheritdoc IJWKManager

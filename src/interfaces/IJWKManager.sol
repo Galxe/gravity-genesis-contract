@@ -84,7 +84,7 @@ interface IJWKManager is IParamSubscriber {
     event OIDCProviderAdded(string indexed name, string configUrl);
     event OIDCProviderRemoved(string indexed name);
     event OIDCProviderUpdated(string indexed name, string newConfigUrl);
-    event ObservedJWKsUpdated(uint256 indexed blockNumber, ProviderJWKs[] jwks);
+    event ObservedJWKsUpdated(uint256 indexed epoch, ProviderJWKs[] jwks);
     event PatchedJWKsRegenerated(bytes32 indexed dataHash);
     event PatchesUpdated(uint256 patchCount);
     event FederatedJWKsUpdated(address indexed dapp, string indexed issuer);
