@@ -405,6 +405,10 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // Find if already exists
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, providerJWKs.issuer)) {
+                // 如果新的version不是old+1 那么就revert
+                if (jwks.entries[i].version + 1 != providerJWKs.version) {
+                    revert InvalidJWKVersion(jwks.entries[i].version + 1, providerJWKs.version);
+                }
                 // Update existing entry - avoid direct assignment, copy fields individually
                 jwks.entries[i].issuer = providerJWKs.issuer;
                 jwks.entries[i].version = providerJWKs.version;

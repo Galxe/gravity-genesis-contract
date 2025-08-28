@@ -20,6 +20,7 @@ interface IJWKManager is IParamSubscriber {
     error UnknownJWKVariant();
     error UnknownPatchVariant();
     error NotAuthorized();
+    error InvalidJWKVersion(uint64 expected, uint64 actual);
 
     // ======== Struct Definitions ========
 
