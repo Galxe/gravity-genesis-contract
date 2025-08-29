@@ -413,6 +413,7 @@ sol! {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
 
     use tracing::Level;
 
@@ -424,30 +425,135 @@ mod tests {
 
     use super::*;
 
+    /// Configuration for test paths
+    #[derive(Debug, Clone)]
+    struct TestConfig {
+        /// Base directory for the project (default: current directory)
+        base_dir: PathBuf,
+        /// Genesis config file path (relative to base_dir)
+        genesis_config_path: PathBuf,
+        /// JWK template file path (relative to base_dir)
+        jwk_template_path: PathBuf,
+        /// OIDC provider file path (relative to base_dir)
+        oidc_provider_path: PathBuf,
+        /// Output directory for genesis generation (relative to base_dir)
+        out_dir: PathBuf,
+        /// Final output directory (relative to base_dir)
+        final_output_dir: PathBuf,
+    }
+
+    impl Default for TestConfig {
+        fn default() -> Self {
+            let base_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            
+            // If we're in the gravity-genesis subdirectory, go up to the project root
+            let base_dir = if base_dir.ends_with("gravity-genesis") {
+                base_dir.parent().unwrap_or(&base_dir).to_path_buf()
+            } else {
+                base_dir
+            };
+            
+            Self {
+                base_dir,
+                genesis_config_path: PathBuf::from("generate/genesis_config.json"),
+                jwk_template_path: PathBuf::from("generate/jwks_template.json"),
+                oidc_provider_path: PathBuf::from("generate/jwks_provider.json"),
+                out_dir: PathBuf::from("out"),
+                final_output_dir: PathBuf::from("output"),
+            }
+        }
+    }
+
+    impl TestConfig {
+        /// Create a new TestConfig with custom base directory
+        fn new(base_dir: PathBuf) -> Self {
+            Self {
+                base_dir,
+                genesis_config_path: PathBuf::from("generate/genesis_config.json"),
+                jwk_template_path: PathBuf::from("generate/jwks_template.json"),
+                oidc_provider_path: PathBuf::from("generate/jwks_provider.json"),
+                out_dir: PathBuf::from("out"),
+                final_output_dir: PathBuf::from("output"),
+            }
+        }
+
+        /// Get absolute path for genesis config
+        fn genesis_config_abs(&self) -> PathBuf {
+            self.base_dir.join(&self.genesis_config_path)
+        }
+
+        /// Get absolute path for JWK template
+        fn jwk_template_abs(&self) -> PathBuf {
+            self.base_dir.join(&self.jwk_template_path)
+        }
+
+        /// Get absolute path for OIDC provider
+        fn oidc_provider_abs(&self) -> PathBuf {
+            self.base_dir.join(&self.oidc_provider_path)
+        }
+
+        /// Get absolute path for out directory
+        fn out_dir_abs(&self) -> PathBuf {
+            self.base_dir.join(&self.out_dir)
+        }
+
+        /// Get absolute path for final output directory
+        fn final_output_dir_abs(&self) -> PathBuf {
+            self.base_dir.join(&self.final_output_dir)
+        }
+
+        /// Validate that all required files exist
+        fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {
+            let required_files = [
+                self.genesis_config_abs(),
+                self.jwk_template_abs(),
+                self.oidc_provider_abs(),
+            ];
+
+            for file_path in &required_files {
+                if !file_path.exists() {
+                    return Err(format!("Required file not found: {}", file_path.display()).into());
+                }
+            }
+
+            Ok(())
+        }
+    }
+
     #[test]
     fn test_after_genesis() {
-        // 初始化tracing 保证等会有日志
         let _ = tracing_subscriber::fmt()
             .with_max_level(Level::DEBUG)
             .try_init();
-        let config_content = fs::read_to_string(
-            "/home/jingyue/projects/gravity-genesis-contract/generate/genesis_config.json",
-        )
-        .unwrap();
-        let config: GenesisConfig = serde_json::from_str(&config_content).unwrap();
-        let jwk_file_path =
-            "/home/jingyue/projects/gravity-genesis-contract/generate/jwks_template.json";
-        let oidc_file_path =
-            "/home/jingyue/projects/gravity-genesis-contract/generate/jwks_provider.json";
+
+        // Use environment variable to override base directory if needed
+        let config = if let Ok(base_dir) = std::env::var("GRAVITY_GENESIS_BASE_DIR") {
+            TestConfig::new(PathBuf::from(base_dir))
+        } else {
+            TestConfig::default()
+        };
+
+        // Validate configuration
+        if let Err(e) = config.validate() {
+            panic!("Test configuration validation failed: {}", e);
+        }
+
+        let config_content = fs::read_to_string(config.genesis_config_abs()).unwrap();
+        let genesis_config: GenesisConfig = serde_json::from_str(&config_content).unwrap();
+        
+        let jwk_file_path = config.jwk_template_abs().to_string_lossy().to_string();
+        let oidc_file_path = config.oidc_provider_abs().to_string_lossy().to_string();
+        
         let (db, bundle_state) = execute::genesis_generate(
-            &"/home/jingyue/projects/gravity-genesis-contract/out",
-            &"/home/jingyue/projects/gravity-genesis-contract/output",
-            &config,
-            Some(jwk_file_path.to_string()),
-            Some(oidc_file_path.to_string()),
+            &config.out_dir_abs().to_string_lossy(),
+            &config.final_output_dir_abs().to_string_lossy(),
+            &genesis_config,
+            Some(jwk_file_path.clone()),
+            Some(oidc_file_path.clone()),
         );
-        verify_jwks(db.clone(), bundle_state.clone(), jwk_file_path);
-        verify_oidc_providers(db.clone(), bundle_state.clone(), oidc_file_path);
+        
+        verify_jwks(db.clone(), bundle_state.clone(), &jwk_file_path);
+        verify_oidc_providers(db.clone(), bundle_state.clone(), &oidc_file_path);
     }
 
     #[test]
