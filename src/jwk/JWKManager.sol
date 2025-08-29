@@ -182,7 +182,6 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
 
-        // 获取current epoch才对
         emit ObservedJWKsUpdated(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch(), observedJWKs.entries);
     }
 
@@ -405,7 +404,6 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // Find if already exists
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, providerJWKs.issuer)) {
-                // 如果新的version不是old+1 那么就revert
                 if (jwks.entries[i].version + 1 != providerJWKs.version) {
                     revert InvalidJWKVersion(jwks.entries[i].version + 1, providerJWKs.version);
                 }
