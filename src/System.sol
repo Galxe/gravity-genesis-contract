@@ -97,7 +97,7 @@ contract System {
     }
 
     modifier onlyGov() {
-        if (msg.sender != GOV_HUB_ADDR) revert OnlySystemContract(GOV_HUB_ADDR);
+        if (msg.sender != GOV_HUB_ADDR && msg.sender != SYSTEM_CALLER) revert OnlySystemContract(GOV_HUB_ADDR);
         _;
     }
 

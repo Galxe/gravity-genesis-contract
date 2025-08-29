@@ -148,7 +148,7 @@ main() {
     create_directory "output"
     
     log_info "Running gravity-genesis binary..."
-    cargo run --release --bin gravity-genesis -- --byte-code-dir out --config-file generate/genesis_config.json --output output --log-file output/genesis_generation.log
+    cargo run --release --bin gravity-genesis -- --byte-code-dir out --config-file generate/genesis_config.json --output output --log-file output/genesis_generation.log --oidc-providers-file generate/jwks_provider.json
     check_result "genesis generation"
     
     # Verify output files

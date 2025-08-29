@@ -20,6 +20,7 @@ interface IJWKManager is IParamSubscriber {
     error UnknownJWKVariant();
     error UnknownPatchVariant();
     error NotAuthorized();
+    error InvalidJWKVersion(uint64 expected, uint64 actual);
 
     // ======== Struct Definitions ========
 
@@ -84,7 +85,7 @@ interface IJWKManager is IParamSubscriber {
     event OIDCProviderAdded(string indexed name, string configUrl);
     event OIDCProviderRemoved(string indexed name);
     event OIDCProviderUpdated(string indexed name, string newConfigUrl);
-    event ObservedJWKsUpdated(uint256 indexed epoch, bytes32 indexed dataHash);
+    event ObservedJWKsUpdated(uint256 indexed epoch, ProviderJWKs[] jwks);
     event PatchedJWKsRegenerated(bytes32 indexed dataHash);
     event PatchesUpdated(uint256 patchCount);
     event FederatedJWKsUpdated(address indexed dapp, string indexed issuer);
@@ -127,6 +128,12 @@ interface IJWKManager is IParamSubscriber {
     function upsertObservedJWKs(
         ProviderJWKs[] calldata providerJWKsArray
     ) external;
+
+    /**
+     * @dev Returns all observed JWKs
+     * @return The complete observed JWK set
+     */
+    function getObservedJWKs() external view returns (AllProvidersJWKs memory);
 
     /**
      * @dev Removes an issuer from observed JWKs (governance only)
@@ -209,12 +216,6 @@ interface IJWKManager is IParamSubscriber {
         string calldata issuer,
         bytes calldata jwkId
     ) external view returns (JWK memory);
-
-    /**
-     * @dev Returns all observed JWKs
-     * @return The complete observed JWK set
-     */
-    function getObservedJWKs() external view returns (AllProvidersJWKs memory);
 
     /**
      * @dev Returns all patched JWKs (observed + patches applied)
