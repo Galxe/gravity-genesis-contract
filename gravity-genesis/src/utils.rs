@@ -83,11 +83,12 @@ pub fn analyze_txn_result(result: &ExecutionResult) -> String {
                 reason.push_str(&format!("\nFunction selector: 0x{}", hex::encode(selector)));
 
                 match selector {
-                    [0x97, 0xb8, 0x83, 0x54] => reason.push_str(" (OnlySystemCaller)"),
-                    [0x0a, 0x5a, 0x60, 0x41] => reason.push_str(" (UnknownParam)"),
-                    [0x11, 0x6c, 0x64, 0xa8] => reason.push_str(" (InvalidValue)"),
-                    [0x83, 0xf1, 0xb1, 0xd3] => reason.push_str(" (OnlyCoinbase)"),
-                    [0xf2, 0x2c, 0x43, 0x90] => reason.push_str(" (OnlyZeroGasPrice)"),
+                    [0x49, 0xfd, 0x36, 0xf2] => reason.push_str(" (OnlySystemCaller)"),
+                    [0x97, 0xb8, 0x83, 0x54] => reason.push_str(" (UnknownParam)"),
+                    [0x0a, 0x5a, 0x60, 0x41] => reason.push_str(" (InvalidValue)"),
+                    [0x11, 0x6c, 0x64, 0xa8] => reason.push_str(" (OnlyCoinbase)"),
+                    [0x83, 0xf1, 0xb1, 0xd3] => reason.push_str(" (OnlyZeroGasPrice)"),
+                    [0xf2, 0x2c, 0x43, 0x90] => reason.push_str(" (OnlySystemContract)"),
                     _ => reason.push_str(" (Unknown error selector)"),
                 }
             }

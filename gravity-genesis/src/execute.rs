@@ -167,7 +167,7 @@ pub fn genesis_generate(
     for (i, r) in result.iter().enumerate() {
         if !r.is_success() {
             error!("=== Transaction {} failed ===", i + 1);
-            info!("Detailed analysis: {}", analyze_txn_result(r));
+            println!("Detailed analysis: {}", analyze_txn_result(r));
             panic!("Genesis transaction {} failed", i + 1);
         } else {
             info!("Detailed analysis: {}", analyze_txn_result(r));

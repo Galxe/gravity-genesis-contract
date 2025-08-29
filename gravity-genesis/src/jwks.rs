@@ -414,6 +414,8 @@ sol! {
 mod tests {
     use std::fs;
 
+    use tracing::Level;
+
     use crate::{
         execute,
         genesis::GenesisConfig,
@@ -424,6 +426,10 @@ mod tests {
 
     #[test]
     fn test_after_genesis() {
+        // 初始化tracing 保证等会有日志
+        let _ = tracing_subscriber::fmt()
+            .with_max_level(Level::DEBUG)
+            .try_init();
         let config_content = fs::read_to_string(
             "/home/jingyue/projects/gravity-genesis-contract/generate/genesis_config.json",
         )
