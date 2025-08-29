@@ -98,21 +98,14 @@ main() {
     
     # Step 1: Foundry build
     log_step "Step 1: Building contracts with Foundry..."
-    if [ ! -d "out" ]; then
-        log_info "out directory doesn't exist, running forge build..."
-        forge build
-        check_result "forge build"
-    else
-        log_info "out directory exists, checking if build is needed..."
-        # Check if out directory is empty or very old
-        if [ -z "$(ls -A out 2>/dev/null)" ] || [ $(find out -maxdepth 0 -mtime +1 2>/dev/null | wc -l) -gt 0 ]; then
-            log_warning "out directory is empty or old, rebuilding..."
-            forge build
-            check_result "forge build"
-        else
-            log_success "out directory is up to date, skipping build"
-        fi
+    # Remove out directory to avoid solc compilation cache issues
+    if [ -d "out" ]; then
+        log_info "Removing out directory to avoid solc compilation cache issues..."
+        rm -rf out
     fi
+    log_info "Running forge build..."
+    forge build
+    check_result "forge build"
     
     # Verify out directory contents
     log_info "Verifying build output..."
