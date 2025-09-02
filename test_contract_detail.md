@@ -52,6 +52,124 @@ contract GravityBridge {
 }
 ```
 
+### **普通质押的完整设计**
+
+基于现有的 StakeCredit、StakeConfig 和 Delegation 实现，普通质押需要考虑以下关键点：
+
+#### **1. 质押目标选择**
+
+普通用户质押时必须选择一个已存在的 validator 作为质押目标：
+
+```solidity
+// ETH 主网 Gravity Bridge 合约 - 完善版
+contract GravityBridge {
+    struct CrossChainStakeRequest {
+        address user;
+        uint256 amount;
+        bool wantToBeValidator;
+        address targetValidator; // 质押目标 validator（普通质押时必填）
+        bytes validatorParams; // 序列化后的 ValidatorRegistrationParams（仅 validator 注册时需要）
+        uint256 nonce;
+        bytes signature;
+    }
+    
+    function stake(CrossChainStakeRequest calldata request) external payable {
+        require(msg.value == request.amount, "Amount mismatch");
+        
+        if (request.wantToBeValidator) {
+            // Validator 注册质押
+            require(request.validatorParams.length > 0, "Validator params required");
+            emit StakeRegisterValidatorEvent(
+                request.user, 
+                request.amount,
+                request.validatorParams,
+                request.nonce
+            );
+        } else {
+            // 普通质押 - 必须指定目标 validator
+            require(request.targetValidator != address(0), "Target validator required");
+            require(request.amount >= IStakeConfig(STAKE_CONFIG_ADDR).minDelegationStake(), "Below min delegation");
+            
+            emit StakeEvent(
+                request.user, 
+                request.amount,
+                request.targetValidator,
+                request.nonce
+            );
+        }
+        
+        // 锁定 ETH 到合约
+        // 记录用户质押状态
+    }
+}
+```
+
+#### **2. 普通质押的跨链处理**
+
+```solidity
+// Gravity 链上的跨链处理合约 - 普通质押
+contract CrossChainProcessor {
+    // ... 现有的 validator 注册处理功能 ...
+    
+    function processStake(
+        address user,
+        uint256 amount,
+        address targetValidator,
+        bytes32 eventHash,
+        bytes calldata ethProof
+    ) external onlyRelayer {
+        // 1. 验证事件未被处理
+        require(!processedEvents[eventHash], "Event already processed");
+        
+        // 2. 验证 ETH 主网事件证明
+        require(validateEthEventProof(ethProof), "Invalid proof");
+        
+        // 3. 验证目标 validator 存在且状态正确
+        ValidatorInfo memory validatorInfo = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorInfo(targetValidator);
+        require(validatorInfo.registered, "Target validator not registered");
+        require(
+            validatorInfo.status == ValidatorStatus.ACTIVE || 
+            validatorInfo.status == ValidatorStatus.PENDING_ACTIVE,
+            "Validator not active"
+        );
+        
+        // 4. 获取 validator 的 StakeCredit 合约地址
+        address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(targetValidator);
+        require(stakeCreditAddress != address(0), "StakeCredit not deployed");
+        
+        // 5. 通过 Delegation 合约执行质押
+        // 注意：这里需要模拟 ETH 的 msg.value，通过合约余额来实现
+        IDelegation(DELEGATION_ADDR).delegate{value: amount}(targetValidator);
+        
+        // 6. 标记事件已处理
+        processedEvents[eventHash] = true;
+        
+        emit CrossChainStakeProcessed(user, amount, targetValidator, eventHash);
+    }
+}
+```
+
+#### **3. 质押金额限制和验证**
+
+基于 StakeConfig 的实现，需要验证：
+
+```solidity
+// 质押金额验证逻辑
+function validateStakeAmount(uint256 amount, bool isValidator) internal view {
+    if (isValidator) {
+        // Validator 质押验证
+        uint256 minValidatorStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
+        uint256 maxStake = IStakeConfig(STAKE_CONFIG_ADDR).maximumStake();
+        require(amount >= minValidatorStake, "Below min validator stake");
+        require(amount <= maxStake, "Exceeds max stake");
+    } else {
+        // 普通质押验证
+        uint256 minDelegationStake = IStakeConfig(STAKE_CONFIG_ADDR).minDelegationStake();
+        require(amount >= minDelegationStake, "Below min delegation stake");
+    }
+}
+```
+
 ### **ValidatorRegistrationParams 序列化设计**
 
 **序列化格式：**
@@ -104,24 +222,34 @@ function deserializeValidatorParams(bytes memory data)
 class GravityRelayer {
     async monitorStakeEvents() {
         // 监控 StakeRegisterValidatorEvent
-        const filter = gravityBridge.filters.StakeRegisterValidatorEvent();
-        
-        gravityBridge.on(filter, async (user, amount, validatorParams, nonce) => {
+        const validatorFilter = gravityBridge.filters.StakeRegisterValidatorEvent();
+        gravityBridge.on(validatorFilter, async (user, amount, validatorParams, nonce) => {
             try {
-                // 1. 验证事件有效性
-                await this.validateStakeEvent(user, amount, nonce);
-                
-                // 2. 在 Gravity 链上执行跨链操作
-                await this.executeCrossChainStake(user, amount, validatorParams);
-                
-                // 3. 记录处理状态
-                await this.recordProcessedEvent(nonce);
-                
+                await this.processValidatorStakeEvent(user, amount, validatorParams, nonce);
             } catch (error) {
-                console.error(`Failed to process stake event: ${error}`);
-                // 重试机制
+                console.error(`Failed to process validator stake event: ${error}`);
             }
         });
+        
+        // 监控普通 StakeEvent
+        const stakeFilter = gravityBridge.filters.StakeEvent();
+        gravityBridge.on(stakeFilter, async (user, amount, targetValidator, nonce) => {
+            try {
+                await this.processNormalStakeEvent(user, amount, targetValidator, nonce);
+            } catch (error) {
+                console.error(`Failed to process normal stake event: ${error}`);
+            }
+        });
+    }
+    
+    async processValidatorStakeEvent(user: string, amount: string, validatorParams: string, nonce: string) {
+        // 处理 validator 注册质押
+        await this.executeCrossChainValidatorStake(user, amount, validatorParams, nonce);
+    }
+    
+    async processNormalStakeEvent(user: string, amount: string, targetValidator: string, nonce: string) {
+        // 处理普通质押
+        await this.executeCrossChainNormalStake(user, amount, targetValidator, nonce);
     }
 }
 ```
@@ -226,12 +354,80 @@ contract GravityBridge {
         // 解锁 ETH 并转给用户
         // 更新用户质押状态
     }
+}
+```
+
+### **普通质押的 Unstake 设计**
+
+基于现有的 StakeCredit 和 Delegation 实现，普通质押的 unstake 流程如下：
+
+#### **1. 普通用户 Unstake 流程**
+
+```solidity
+// Gravity 链上的跨链 unstake 处理 - 普通质押
+contract CrossChainUnstakeProcessor {
+    mapping(bytes32 => bool) public processedUnstakeEvents;
     
-    // 批量 unstake 支持
-    function batchUnstake(CrossChainUnstakeRequest[] calldata requests) external {
-        for (uint256 i = 0; i < requests.length; i++) {
-            unstake(requests[i]);
-        }
+    function processNormalUnstake(
+        address user,
+        uint256 amount,
+        address validator,
+        bytes32 eventHash,
+        bytes calldata ethProof
+    ) external onlyRelayer {
+        // 1. 验证事件未被处理
+        require(!processedUnstakeEvents[eventHash], "Event already processed");
+        
+        // 2. 验证 ETH 主网事件证明
+        require(validateEthEventProof(ethProof), "Invalid proof");
+        
+        // 3. 验证 validator 存在
+        require(IValidatorManager(VALIDATOR_MANAGER_ADDR).isValidatorExists(validator), "Validator not found");
+        
+        // 4. 获取 validator 的 StakeCredit 合约地址
+        address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
+        require(stakeCreditAddress != address(0), "StakeCredit not found");
+        
+        // 5. 计算对应的份额数量
+        uint256 shares = IStakeCredit(stakeCreditAddress).getSharesByPooledG(amount);
+        require(shares > 0, "Invalid shares calculation");
+        
+        // 6. 通过 Delegation 合约执行 undelegate
+        IDelegation(DELEGATION_ADDR).undelegate(validator, shares);
+        
+        // 7. 标记事件已处理
+        processedUnstakeEvents[eventHash] = true;
+        
+        emit CrossChainNormalUnstakeProcessed(user, amount, validator, eventHash);
+    }
+}
+```
+
+#### **2. 资金提取流程**
+
+基于 StakeCredit 的 unlock → pendingInactive → inactive → claim 流程：
+
+```solidity
+// 资金提取处理
+contract CrossChainClaimProcessor {
+    function processClaim(
+        address user,
+        address validator,
+        bytes32 eventHash,
+        bytes calldata ethProof
+    ) external onlyRelayer {
+        // 1. 验证事件证明
+        require(validateEthEventProof(ethProof), "Invalid proof");
+        
+        // 2. 获取 StakeCredit 合约地址
+        address stakeCreditAddress = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStakeCredit(validator);
+        require(stakeCreditAddress != address(0), "StakeCredit not found");
+        
+        // 3. 执行 claim 操作
+        uint256 claimedAmount = IStakeCredit(stakeCreditAddress).claim(payable(user));
+        
+        // 4. 记录提取事件
+        emit CrossChainClaimProcessed(user, validator, claimedAmount, eventHash);
     }
 }
 ```
@@ -366,7 +562,6 @@ class GravityRelayer {
             await this.executeValidatorExit(user, validatorAddress, amount, nonce);
         } catch (error) {
             console.error(`Failed to process validator exit event: ${error}`);
-        }
         }
     }
 }
