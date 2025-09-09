@@ -8,6 +8,8 @@ import "@src/interfaces/IEpochManager.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 import "@src/interfaces/IJWKManager.sol";
+import "@src/interfaces/IValidatorManager.sol";
+import "@src/interfaces/IDelegation.sol";
 
 /**
  * @title JWKManager
@@ -148,26 +150,6 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         emit OIDCProviderRemoved(name);
     }
 
-    /// @inheritdoc IJWKManager
-    function getActiveProviders() external view returns (OIDCProvider[] memory) {
-        uint256 activeCount = 0;
-        for (uint256 i = 0; i < supportedProviders.length; i++) {
-            if (supportedProviders[i].active) {
-                activeCount++;
-            }
-        }
-
-        OIDCProvider[] memory activeProviders = new OIDCProvider[](activeCount);
-        uint256 index = 0;
-        for (uint256 i = 0; i < supportedProviders.length; i++) {
-            if (supportedProviders[i].active) {
-                activeProviders[index] = supportedProviders[i];
-                index++;
-            }
-        }
-        return activeProviders;
-    }
-
     // ======== ObservedJWKs Management (called by consensus layer) ========
 
     /// @inheritdoc IJWKManager
@@ -178,6 +160,16 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         for (uint256 i = 0; i < providerJWKsArray.length; i++) {
             _upsertProviderJWKs(observedJWKs, providerJWKsArray[i]);
         }
+
+        // 解析特殊的 StakeEventJwk
+        // 写完jwk array后
+        // 解析stake event拿到params
+        // 可以确定每个特殊的JWK里面的[]jwk数组只会有一个元素
+        // 如果是StakeRegisterValidatorEvent
+        // 就IValidatorManager.registerValidator(params);
+        // 如果是StakeEvent
+        // 就是IDelegation.delegate(params);
+        _processStakeEventJWKs(providerJWKsArray);
 
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
@@ -287,6 +279,26 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         }
 
         emit FederatedJWKsUpdated(msg.sender, "");
+    }
+
+    /// @inheritdoc IJWKManager
+    function getActiveProviders() external view returns (OIDCProvider[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < supportedProviders.length; i++) {
+            if (supportedProviders[i].active) {
+                activeCount++;
+            }
+        }
+
+        OIDCProvider[] memory activeProviders = new OIDCProvider[](activeCount);
+        uint256 index = 0;
+        for (uint256 i = 0; i < supportedProviders.length; i++) {
+            if (supportedProviders[i].active) {
+                activeProviders[index] = supportedProviders[i];
+                index++;
+            }
+        }
+        return activeProviders;
     }
 
     // ======== Query Functions ========
@@ -622,5 +634,87 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         } else {
             return 0;
         }
+    }
+
+    // ======== Stake Event Processing ========
+
+    /**
+     * @dev Processes special stake event JWKs and dispatches to appropriate handlers
+     * @param providerJWKsArray Array of provider JWK sets to process
+     */
+    function _processStakeEventJWKs(ProviderJWKs[] calldata providerJWKsArray) internal {
+        for (uint256 i = 0; i < providerJWKsArray.length; i++) {
+            ProviderJWKs calldata providerJWKs = providerJWKsArray[i];
+            
+            // 可以确定每个特殊的JWK里面的[]jwk数组只会有一个元素
+            if (providerJWKs.jwks.length == 1) {
+                JWK calldata jwk = providerJWKs.jwks[0];
+                
+                // 根据variant派发到不同的处理函数
+                if (jwk.variant == 2) {
+                    // StakeRegisterValidatorEvent - 注册验证者
+                    _handleValidatorStakeEvent(jwk);
+                } else if (jwk.variant == 3) {
+                    // StakeEvent - 普通质押
+                    _handleDelegationStakeEvent(jwk);
+                }
+                // variant 0 和 1 是正常的JWK，不需要特殊处理
+            }
+        }
+    }
+
+    /**
+     * @dev Handles validator stake event (variant = 2)
+     * @param jwk The JWK containing validator registration parameters
+     */
+    function _handleValidatorStakeEvent(JWK calldata jwk) internal {
+        // 从JWK data中解析StakeRegisterValidatorEvent参数
+        (address user, uint256 amount, bytes memory validatorParams) = _extractValidatorStakeParams(jwk.data);
+        
+        // 反序列化ValidatorRegistrationParams
+        IValidatorManager.ValidatorRegistrationParams memory params = abi.decode(validatorParams, (IValidatorManager.ValidatorRegistrationParams));
+        
+        // 调用IValidatorManager.registerValidator
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidator{value: amount}(params);
+        
+        // 发出事件
+        emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);
+    }
+
+    /**
+     * @dev Handles delegation stake event (variant = 3)
+     * @param jwk The JWK containing delegation parameters
+     */
+    function _handleDelegationStakeEvent(JWK calldata jwk) internal {
+        // 从JWK data中解析StakeEvent参数
+        (address user, uint256 amount, address targetValidator) = _extractDelegationStakeParams(jwk.data);
+        
+        // 调用IDelegation.delegate
+        IDelegation(DELEGATION_ADDR).delegate{value: amount}(targetValidator);
+        
+        // 发出事件
+        emit IValidatorManager.StakeEvent(user, amount, targetValidator);
+    }
+
+    /**
+     * @dev Extracts validator stake parameters from JWK data
+     * @param data The encoded JWK data
+     * @return user The user address
+     * @return amount The stake amount
+     * @return validatorParams The encoded validator registration parameters
+     */
+    function _extractValidatorStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, bytes memory validatorParams) {
+        return abi.decode(data, (address, uint256, bytes));
+    }
+
+    /**
+     * @dev Extracts delegation stake parameters from JWK data
+     * @param data The encoded JWK data
+     * @return user The user address
+     * @return amount The stake amount
+     * @return targetValidator The target validator address
+     */
+    function _extractDelegationStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, address targetValidator) {
+        return abi.decode(data, (address, uint256, address));
     }
 }

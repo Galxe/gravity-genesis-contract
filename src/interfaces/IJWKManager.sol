@@ -48,7 +48,7 @@ interface IJWKManager is IParamSubscriber {
 
     /// @dev JWK union type
     struct JWK {
-        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
+        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK, 2: stake to be validator, 3: stake to delegate
         bytes data; // Encoded JWK data
     }
 

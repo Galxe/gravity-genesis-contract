@@ -29,4 +29,8 @@ contract EpochManagerMock {
         canTriggerEpochTransitionFlag = false;
         triggerEpochTransitionCallCount = 0;
     }
+
+    function currentEpoch() external pure returns (uint256) {
+        return 1; // Return a default epoch for testing
+    }
 }
