@@ -126,7 +126,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
 
         if (index == 0) {
             // Add new provider
-            supportedProviders.push(OIDCProvider({ name: name, configUrl: configUrl, active: true }));
+            supportedProviders.push(OIDCProvider({ name: name, configUrl: configUrl, active: true, onchain_block_number: 0 }));
             providerIndex[name] = supportedProviders.length;
             emit OIDCProviderAdded(name, configUrl);
         } else {
@@ -638,6 +638,14 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
 
     // ======== Stake Event Processing ========
 
+    function _updateOnchainBlockNumber(string memory issuer, uint256 blockNumber) internal {
+        uint256 index = providerIndex[issuer];
+        if (index == 0) {
+            revert IssuerNotFound();
+        }
+        supportedProviders[index - 1].onchain_block_number = blockNumber;
+    }
+
     /**
      * @dev Processes special stake event JWKs and dispatches to appropriate handlers
      * @param providerJWKsArray Array of provider JWK sets to process
@@ -649,16 +657,24 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             // 可以确定每个特殊的JWK里面的[]jwk数组只会有一个元素
             if (providerJWKs.jwks.length == 1) {
                 JWK calldata jwk = providerJWKs.jwks[0];
-                
-                // 根据variant派发到不同的处理函数
-                if (jwk.variant == 2) {
-                    // StakeRegisterValidatorEvent - 注册验证者
-                    _handleValidatorStakeEvent(jwk);
-                } else if (jwk.variant == 3) {
-                    // StakeEvent - 普通质押
-                    _handleDelegationStakeEvent(jwk);
+
+                if (jwk.variant == 0) {
+                    continue;
                 }
-                // variant 0 和 1 是正常的JWK，不需要特殊处理
+
+                if (jwk.variant != 1) {
+                    revert InvalidJWKVariant(jwk.variant);
+                }
+
+                UnsupportedJWK memory unsupportedJWK = abi.decode(jwk.data, (UnsupportedJWK));
+                // 根据variant派发到不同的处理函数
+                if (keccak256(unsupportedJWK.id) == keccak256(bytes("1"))) {
+                    // StakeRegisterValidatorEvent - 注册验证者
+                    _handleValidatorStakeEvent(jwk, providerJWKs.issuer);
+                } else if (keccak256(unsupportedJWK.id) == keccak256(bytes("2"))) {
+                    // StakeEvent - 普通质押
+                    _handleDelegationStakeEvent(jwk, providerJWKs.issuer);
+                }
             }
         }
     }
@@ -667,11 +683,12 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
      * @dev Handles validator stake event (variant = 2)
      * @param jwk The JWK containing validator registration parameters
      */
-    function _handleValidatorStakeEvent(JWK calldata jwk) internal {
+    function _handleValidatorStakeEvent(JWK calldata jwk, string memory issuer) internal {
         // 从JWK data中解析StakeRegisterValidatorEvent参数
-        (address user, uint256 amount, bytes memory validatorParams) = _extractValidatorStakeParams(jwk.data);
+        (address user, uint256 amount, bytes memory validatorParams, uint256 blockNumber) = _extractValidatorStakeParams(jwk.data);
         
-        // 反序列化ValidatorRegistrationParams
+        _updateOnchainBlockNumber(issuer, blockNumber);
+        
         IValidatorManager.ValidatorRegistrationParams memory params = abi.decode(validatorParams, (IValidatorManager.ValidatorRegistrationParams));
         
         // 调用IValidatorManager.registerValidator
@@ -685,9 +702,11 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
      * @dev Handles delegation stake event (variant = 3)
      * @param jwk The JWK containing delegation parameters
      */
-    function _handleDelegationStakeEvent(JWK calldata jwk) internal {
+    function _handleDelegationStakeEvent(JWK calldata jwk, string memory issuer) internal {
         // 从JWK data中解析StakeEvent参数
-        (address user, uint256 amount, address targetValidator) = _extractDelegationStakeParams(jwk.data);
+        (address user, uint256 amount, address targetValidator, uint256 blockNumber) = _extractDelegationStakeParams(jwk.data);
+        
+        _updateOnchainBlockNumber(issuer, blockNumber);
         
         // 调用IDelegation.delegate
         IDelegation(DELEGATION_ADDR).delegate{value: amount}(targetValidator);
@@ -703,8 +722,11 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
      * @return amount The stake amount
      * @return validatorParams The encoded validator registration parameters
      */
-    function _extractValidatorStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, bytes memory validatorParams) {
-        return abi.decode(data, (address, uint256, bytes));
+    function _extractValidatorStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, bytes memory validatorParams, uint256 blockNumber) {
+        // 先解压成Un supportedJWK
+        UnsupportedJWK memory unsupportedJWK = abi.decode(data, (UnsupportedJWK));
+        validatorParams = unsupportedJWK.payload;
+        return abi.decode(validatorParams, (address, uint256, bytes, uint256));
     }
 
     /**
@@ -713,8 +735,9 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
      * @return user The user address
      * @return amount The stake amount
      * @return targetValidator The target validator address
+     * @return blockNumber The block number
      */
-    function _extractDelegationStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, address targetValidator) {
-        return abi.decode(data, (address, uint256, address));
+    function _extractDelegationStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, address targetValidator, uint256 blockNumber) {
+        return abi.decode(data, (address, uint256, address, uint256));
     }
 }

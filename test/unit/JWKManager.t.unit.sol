@@ -65,6 +65,7 @@ contract JWKManagerTest is Test, TestConstants {
 
     // ============ STAKE EVENT JWK PROCESSING TESTS ============
 
+    /// @notice Test processing validator stake event JWK, should call register validator method
     function test_processStakeEventJWKs_validatorStakeEvent_shouldCallRegisterValidator() public {
         // Arrange
         IValidatorManager.Commission memory commission = IValidatorManager.Commission({
@@ -115,6 +116,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertEq(_getValidatorManagerMock().lastValidatorParams(), validatorParams);
     }
 
+    /// @notice Test processing delegation stake event JWK, should call delegate method
     function test_processStakeEventJWKs_delegationStakeEvent_shouldCallDelegate() public {
         // Arrange
         bytes memory stakeData = abi.encode(TEST_USER, TEST_STAKE_AMOUNT, TEST_TARGET_VALIDATOR);
@@ -145,6 +147,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertEq(_getDelegationMock().lastTargetValidator(), TEST_TARGET_VALIDATOR);
     }
 
+    /// @notice Test processing normal JWK (non-stake event), should not process stake
     function test_processStakeEventJWKs_normalJWK_shouldNotProcess() public {
         // Arrange - Create a normal RSA JWK (variant = 0)
         IJWKManager.RSA_JWK memory rsaJWK = IJWKManager.RSA_JWK({
@@ -179,6 +182,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertFalse(_getDelegationMock().stakeEventEmitted());
     }
 
+    /// @notice Test processing provider with multiple JWKs, should not process (only process single JWK providers)
     function test_processStakeEventJWKs_multipleJWKs_shouldProcessOnlySingleJWK() public {
         // Arrange - Create provider with multiple JWKs (should not process)
         IJWKManager.RSA_JWK memory rsaJWK = IJWKManager.RSA_JWK({
@@ -220,6 +224,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertFalse(_getDelegationMock().stakeEventEmitted());
     }
 
+    /// @notice Test processing unsupported JWK type, should not process stake
     function test_processStakeEventJWKs_unsupportedJWK_shouldNotProcess() public {
         // Arrange - Create an unsupported JWK (variant = 1)
         IJWKManager.UnsupportedJWK memory unsupportedJWK = IJWKManager.UnsupportedJWK({
@@ -251,6 +256,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertFalse(_getDelegationMock().stakeEventEmitted());
     }
 
+    /// @notice Test processing multiple providers, each provider should be processed
     function test_processStakeEventJWKs_multipleProviders_shouldProcessEach() public {
         // Arrange - Create two providers, each with a single stake JWK
         bytes memory validatorStakeData = abi.encode(TEST_USER, TEST_STAKE_AMOUNT, abi.encode(
@@ -313,6 +319,7 @@ contract JWKManagerTest is Test, TestConstants {
 
     // ============ PARAMETER EXTRACTION TESTS ============
 
+    /// @notice Test extracting validator stake parameters, valid data should be extracted correctly
     function test_extractValidatorStakeParams_validData_shouldExtractCorrectly() public {
         // Arrange
         IValidatorManager.ValidatorRegistrationParams memory params = IValidatorManager.ValidatorRegistrationParams({
@@ -360,6 +367,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertEq(_getValidatorManagerMock().lastValidatorParams(), validatorParams);
     }
 
+    /// @notice Test extracting delegation stake parameters, valid data should be extracted correctly
     function test_extractDelegationStakeParams_validData_shouldExtractCorrectly() public {
         // Arrange
         bytes memory stakeData = abi.encode(TEST_USER, TEST_STAKE_AMOUNT, TEST_TARGET_VALIDATOR);
@@ -391,6 +399,7 @@ contract JWKManagerTest is Test, TestConstants {
 
     // ============ ACCESS CONTROL TESTS ============
 
+    /// @notice Test non-system caller calling upsertObservedJWKs, should revert
     function test_upsertObservedJWKs_nonSystemCaller_shouldRevert() public {
         // Arrange
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
@@ -402,6 +411,7 @@ contract JWKManagerTest is Test, TestConstants {
 
     // ============ EDGE CASE TESTS ============
 
+    /// @notice Test processing empty provider array, should not process anything
     function test_processStakeEventJWKs_emptyProviderArray_shouldNotProcess() public {
         // Arrange
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
@@ -415,6 +425,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertFalse(_getDelegationMock().stakeEventEmitted());
     }
 
+    /// @notice Test processing JWK with invalid variant, should not process stake
     function test_processStakeEventJWKs_invalidVariant_shouldNotProcess() public {
         // Arrange - Create JWK with invalid variant (4)
         bytes memory stakeData = abi.encode(TEST_USER, TEST_STAKE_AMOUNT, TEST_TARGET_VALIDATOR);

@@ -50,6 +50,7 @@ sol! {
         string name; // Provider name, e.g., "https://accounts.google.com"
         string configUrl; // OpenID configuration URL
         bool active; // Whether the provider is active
+        uint64 onchain_block_number; // Onchain block number
     }
     function upsertOIDCProvider(string calldata name, string calldata configUrl) external;
     function getActiveProviders() external view returns (OIDCProvider[] memory);
@@ -222,6 +223,7 @@ pub fn read_oidc_providers_from_file(
             name: provider.name,
             configUrl: provider.configUrl,
             active: provider.active,
+            onchain_block_number: 0,
         })
         .collect();
 

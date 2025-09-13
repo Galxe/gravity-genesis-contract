@@ -21,6 +21,7 @@ interface IJWKManager is IParamSubscriber {
     error UnknownPatchVariant();
     error NotAuthorized();
     error InvalidJWKVersion(uint64 expected, uint64 actual);
+    error InvalidJWKVariant(uint8 variant);
 
     // ======== Struct Definitions ========
 
@@ -29,6 +30,7 @@ interface IJWKManager is IParamSubscriber {
         string name; // Provider name, e.g., "https://accounts.google.com"
         string configUrl; // OpenID configuration URL
         bool active; // Whether the provider is active
+        uint256 onchain_block_number; // Onchain block number
     }
 
     /// @dev RSA JWK structure
@@ -48,7 +50,7 @@ interface IJWKManager is IParamSubscriber {
 
     /// @dev JWK union type
     struct JWK {
-        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK, 2: stake to be validator, 3: stake to delegate
+        uint8 variant; // 0: RSA_JWK, 1: UnsupportedJWK
         bytes data; // Encoded JWK data
     }
 
@@ -301,7 +303,7 @@ interface IJWKManager is IParamSubscriber {
      */
     function supportedProviders(
         uint256 index
-    ) external view returns (string memory name, string memory configUrl, bool active);
+    ) external view returns (string memory name, string memory configUrl, bool active, uint256 onchain_block_number);
 
     /**
      * @dev Gets the index of a provider by name
