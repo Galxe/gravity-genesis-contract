@@ -36,7 +36,7 @@ log_debug() {
 
 # Error handling
 set -e  # Exit on any error
-trap 'log_error "Script failed at line $LINENO"' ERR
+trap 'log_error "Script failed at line $LINENO"; restore_epoch_manager; exit 1' ERR
 
 # Function to check if command exists
 check_command() {
@@ -80,21 +80,113 @@ check_result() {
     fi
 }
 
+# Default values
+DEFAULT_EPOCH_INTERVAL_HOURS=2
+EPOCH_INTERVAL_HOURS=$DEFAULT_EPOCH_INTERVAL_HOURS
+
+# Function to show help
+show_help() {
+    echo "Gravity Genesis Generation Script"
+    echo ""
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -i, --interval HOURS    Set epoch interval in hours (default: $DEFAULT_EPOCH_INTERVAL_HOURS)"
+    echo "  -h, --help             Show this help message"
+    echo ""
+    echo "Description:"
+    echo "  This script generates a complete genesis configuration for the Gravity blockchain."
+    echo "  It compiles smart contracts, extracts bytecode, and creates genesis files with"
+    echo "  configurable epoch intervals for the EpochManager contract."
+    echo ""
+    echo "  Note: Fractional hours (e.g., 0.5, 1.5) are supported and will be converted"
+    echo "  to precise microsecond values for Solidity uint256 compatibility."
+    echo ""
+    echo "Examples:"
+    echo "  $0                      # Use default 2-hour epoch interval"
+    echo "  $0 -i 4                # Use 4-hour epoch interval"
+    echo "  $0 --interval 1.5      # Use 1.5-hour epoch interval"
+    echo "  $0 -i 0.1              # Use 0.1-hour (6-minute) epoch interval"
+    echo ""
+}
+
+# Function to parse command line arguments
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -i|--interval)
+                EPOCH_INTERVAL_HOURS="$2"
+                if ! [[ "$EPOCH_INTERVAL_HOURS" =~ ^[0-9]+(\.[0-9]+)?$ ]] || (( $(echo "$EPOCH_INTERVAL_HOURS <= 0" | bc -l) )); then
+                    log_error "Invalid epoch interval: $EPOCH_INTERVAL_HOURS. Must be a positive number."
+                    exit 1
+                fi
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                show_help
+                exit 1
+                ;;
+        esac
+    done
+}
+
+# Function to modify EpochManager.sol with the specified epoch interval
+modify_epoch_manager() {
+    local interval_hours=$1
+    
+    # Use Python script to convert hours to microseconds (ensures proper integer conversion)
+    local interval_microsecs=$(python3 generate/convert_hours_to_microsecs.py "$interval_hours")
+    
+    log_info "Configuring EpochManager with ${interval_hours} hour epoch interval (${interval_microsecs} microseconds)..."
+    log_info "Note: Fractional hours are converted to precise microsecond values for Solidity compatibility."
+    
+    # Create a backup of the original file
+    cp src/epoch/EpochManager.sol src/epoch/EpochManager.sol.backup
+    
+    # Replace the hardcoded value with the configurable one
+    sed -i "s/epochIntervalMicrosecs = 2 hours \* 1_000_000;/epochIntervalMicrosecs = ${interval_microsecs};/" src/epoch/EpochManager.sol
+    
+    log_success "EpochManager.sol updated with ${interval_hours} hour interval"
+}
+
+# Function to restore original EpochManager.sol
+restore_epoch_manager() {
+    if [ -f "src/epoch/EpochManager.sol.backup" ]; then
+        log_info "Restoring original EpochManager.sol..."
+        mv src/epoch/EpochManager.sol.backup src/epoch/EpochManager.sol
+        log_success "EpochManager.sol restored"
+    fi
+}
+
 # Main script
 main() {
+    # Parse command line arguments
+    parse_arguments "$@"
+    
     log_step "Starting Gravity Genesis generation process..."
+    log_info "Epoch interval: ${EPOCH_INTERVAL_HOURS} hours"
     
     # Check required commands
     log_info "Checking required commands..."
     check_command "forge"
     check_command "python3"
     check_command "cargo"
+    check_command "bc"  # For floating point arithmetic
     log_success "All required commands are available"
     
     # Check if we're in the right directory (should have src/ directory)
     log_info "Checking current directory..."
     check_directory "src"
     log_success "Current directory is valid"
+    
+    # Step 0: Modify EpochManager.sol with specified interval
+    log_step "Step 0: Configuring EpochManager with specified interval..."
+    modify_epoch_manager "$EPOCH_INTERVAL_HOURS"
     
     # Step 1: Foundry build
     log_step "Step 1: Building contracts with Foundry..."
@@ -141,7 +233,7 @@ main() {
     create_directory "output"
     
     log_info "Running gravity-genesis binary..."
-    cargo run --release --bin gravity-genesis -- --byte-code-dir out --config-file generate/genesis_config.json --output output --log-file output/genesis_generation.log --oidc-providers-file generate/jwks_provider.json
+    cargo run --release --bin gravity-genesis -- --byte-code-dir out --config-file generate/genesis_config.json --output output --log-file output/genesis_generation.log
     check_result "genesis generation"
     
     # Verify output files
@@ -196,6 +288,10 @@ main() {
     log_info "  - output/genesis_contracts.json (contract bytecodes)"
     log_info "  - output/bundle_state.json (bundle state)"
     log_info "  - output/genesis_generation.log (generation logs)"
+    
+    # Cleanup: Restore original EpochManager.sol
+    log_info "Cleaning up temporary files..."
+    restore_epoch_manager
     
     log_success "All steps completed successfully!"
 }

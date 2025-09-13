@@ -212,6 +212,79 @@ The linting rules are configured in `.solhint.json` and help enforce:
 - **Gas optimization hints** - Suggestions for gas-efficient code
 - **Security patterns** - Basic security-related code patterns
 
+## Genesis Generation Script
+
+The project includes a comprehensive genesis generation script (`generate_genesis.sh`) that automates the creation of complete blockchain genesis configurations for the Gravity blockchain.
+
+### Features
+
+- **Configurable Epoch Intervals**: Set custom epoch durations for the EpochManager contract
+- **Precise Fractional Support**: Supports decimal hours (e.g., 0.5, 1.5) with accurate microsecond conversion
+- **Solidity Compatibility**: Ensures proper uint256 integer values for smart contract compilation
+- **Automated Contract Compilation**: Builds all smart contracts using Foundry
+- **Bytecode Extraction**: Extracts contract bytecode for genesis deployment
+- **Genesis File Generation**: Creates complete genesis.json with accounts and contracts
+- **Error Handling**: Comprehensive error checking and cleanup
+- **Logging**: Detailed progress logging with color-coded output
+
+### Usage
+
+```bash
+# Basic usage with default 2-hour epoch interval
+./generate_genesis.sh
+
+# Specify custom epoch interval (in hours)
+./generate_genesis.sh -i 4          # 4-hour epoch interval
+./generate_genesis.sh --interval 1.5 # 1.5-hour epoch interval
+./generate_genesis.sh -i 0.1        # 0.1-hour (6-minute) epoch interval
+
+# Show help information
+./generate_genesis.sh --help
+```
+
+### Precision and Conversion
+
+The script supports fractional hours and automatically converts them to precise microsecond values:
+
+- **0.1 hours** → 360,000,000 microseconds (6 minutes)
+- **0.5 hours** → 1,800,000,000 microseconds (30 minutes)  
+- **1.5 hours** → 5,400,000,000 microseconds (90 minutes)
+- **2.0 hours** → 7,200,000,000 microseconds (120 minutes)
+
+All values are converted to integers to ensure Solidity `uint256` compatibility.
+
+### Script Options
+
+- `-i, --interval HOURS`: Set epoch interval in hours (default: 2)
+- `-h, --help`: Show help message and usage examples
+
+### What It Does
+
+1. **Contract Configuration**: Modifies `EpochManager.sol` with the specified epoch interval
+2. **Contract Compilation**: Builds all smart contracts using `forge build`
+3. **Bytecode Extraction**: Extracts bytecode from compiled contracts
+4. **Genesis Generation**: Uses the Rust binary to generate genesis accounts and contracts
+5. **File Combination**: Combines account allocations and creates final genesis.json
+6. **Cleanup**: Restores original contract files and cleans up temporary files
+
+### Generated Files
+
+The script creates several output files:
+
+- `genesis.json` - Main genesis configuration file
+- `account_alloc.json` - Combined account allocation data
+- `output/genesis_accounts.json` - Account states and balances
+- `output/genesis_contracts.json` - Contract bytecodes and deployment data
+- `output/bundle_state.json` - Bundle state information
+- `output/genesis_generation.log` - Detailed generation logs
+
+### Requirements
+
+- Foundry (forge)
+- Python 3
+- Cargo (Rust)
+- bc (for floating point arithmetic)
+
 ## Demo Files
 
 The template comes with educational demo files to help you understand smart contract development patterns:
