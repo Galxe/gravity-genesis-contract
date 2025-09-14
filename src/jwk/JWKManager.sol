@@ -654,9 +654,8 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         for (uint256 i = 0; i < providerJWKsArray.length; i++) {
             ProviderJWKs calldata providerJWKs = providerJWKsArray[i];
             
-            // 可以确定每个特殊的JWK里面的[]jwk数组只会有一个元素
-            if (providerJWKs.jwks.length == 1) {
-                JWK calldata jwk = providerJWKs.jwks[0];
+            for (uint256 j = 0; j < providerJWKs.jwks.length; j++) {
+                JWK calldata jwk = providerJWKs.jwks[j];
 
                 if (jwk.variant == 0) {
                     continue;
