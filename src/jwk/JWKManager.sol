@@ -665,15 +665,15 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
                     revert InvalidJWKVariant(jwk.variant);
                 }
 
-                UnsupportedJWK memory unsupportedJWK = abi.decode(jwk.data, (UnsupportedJWK));
-                // 根据variant派发到不同的处理函数
-                if (keccak256(unsupportedJWK.id) == keccak256(bytes("1"))) {
-                    // StakeRegisterValidatorEvent - 注册验证者
-                    _handleValidatorStakeEvent(jwk, providerJWKs.issuer);
-                } else if (keccak256(unsupportedJWK.id) == keccak256(bytes("2"))) {
-                    // StakeEvent - 普通质押
-                    _handleDelegationStakeEvent(jwk, providerJWKs.issuer);
-                }
+                // UnsupportedJWK memory unsupportedJWK = abi.decode(jwk.data, (UnsupportedJWK));
+                // // 根据variant派发到不同的处理函数
+                // if (keccak256(unsupportedJWK.id) == keccak256(bytes("1"))) {
+                //     // StakeRegisterValidatorEvent - 注册验证者
+                //     _handleValidatorStakeEvent(jwk, providerJWKs.issuer);
+                // } else if (keccak256(unsupportedJWK.id) == keccak256(bytes("2"))) {
+                //     // StakeEvent - 普通质押
+                //     _handleDelegationStakeEvent(jwk, providerJWKs.issuer);
+                // }
             }
         }
     }
@@ -691,7 +691,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         IValidatorManager.ValidatorRegistrationParams memory params = abi.decode(validatorParams, (IValidatorManager.ValidatorRegistrationParams));
         
         // 调用IValidatorManager.registerValidator
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidator{value: amount}(params);
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal{value: amount}(user, params);
         
         // 发出事件
         emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);

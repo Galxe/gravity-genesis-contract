@@ -142,8 +142,9 @@ contract ValidatorManagerUtils is System, IValidatorManagerUtils {
         }
 
         // check BLS proof only if consensus key is provided
-        if (consensusPublicKey.length > 0) {
-            this.validateConsensusKey(validator, consensusPublicKey, blsProof);
-        }
+        // TODO(jaxon & Alex)
+        // if (consensusPublicKey.length > 0) {
+        //     this.validateConsensusKey(validator, consensusPublicKey, blsProof);
+        // }
     }
 }

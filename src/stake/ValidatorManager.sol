@@ -168,12 +168,20 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
     }
 
+    
     /// @inheritdoc IValidatorManager
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable nonReentrant whenNotPaused {
         address validator = msg.sender;
-
+        this.registerValidatorInternal(validator, params);
+    }
+    
+    /// @inheritdoc IValidatorManager
+    function registerValidatorInternal(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) external payable onlySystemJWKCaller {
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         // TODO: remove this

@@ -105,4 +105,14 @@ contract System {
         require(msg.sender == TIMELOCK_ADDR, "the msg sender must be governor timelock contract");
         _;
     }
+
+    modifier onlySystemJWKCaller() {
+        require(
+            msg.sender == address(this) ||  // ValidatorManager自己
+            msg.sender == JWK_MANAGER_ADDR ||  // JWKManager
+            msg.sender == SYSTEM_CALLER,  // 系统调用者
+            "Unauthorized caller"
+        );
+        _;
+    }
 }

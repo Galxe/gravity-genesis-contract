@@ -55,7 +55,6 @@ interface IValidatorManager is IReconfigurableModule {
         Commission commission; // Changed from uint64 commissionRate to Commission struct
         string moniker;
         address initialOperator;
-        address initialVoter;
         address initialBeneficiary; // Passed directly to StakeCredit
         // Network addresses for Aptos compatibility
         bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
@@ -169,6 +168,11 @@ interface IValidatorManager is IReconfigurableModule {
      * @dev Register new validator
      */
     function registerValidator(
+        ValidatorRegistrationParams calldata params
+    ) external payable;
+
+    function registerValidatorInternal(
+        address validator,
         ValidatorRegistrationParams calldata params
     ) external payable;
 
