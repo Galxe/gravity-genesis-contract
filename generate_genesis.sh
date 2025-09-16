@@ -38,6 +38,21 @@ log_debug() {
 set -e  # Exit on any error
 trap 'log_error "Script failed at line $LINENO"; restore_epoch_manager; exit 1' ERR
 
+# Function to detect operating system
+detect_os() {
+    case "$(uname -s)" in
+        Darwin*)
+            echo "macos"
+            ;;
+        Linux*)
+            echo "linux"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
 # Function to check if command exists
 check_command() {
     if ! command -v $1 &> /dev/null; then
@@ -148,8 +163,22 @@ modify_epoch_manager() {
     # Create a backup of the original file
     cp src/epoch/EpochManager.sol src/epoch/EpochManager.sol.backup
     
-    # Replace the hardcoded value with the configurable one
-    sed -i "s/epochIntervalMicrosecs = 2 hours \* 1_000_000;/epochIntervalMicrosecs = ${interval_microsecs};/" src/epoch/EpochManager.sol
+    # Detect OS and use appropriate sed command
+    local os=$(detect_os)
+    case $os in
+        "macos")
+            # macOS sed requires empty string after -i for in-place editing
+            sed -i "" "s/epochIntervalMicrosecs = 2 hours \* 1_000_000;/epochIntervalMicrosecs = ${interval_microsecs};/" src/epoch/EpochManager.sol
+            ;;
+        "linux")
+            # Linux sed uses -i without empty string
+            sed -i "s/epochIntervalMicrosecs = 2 hours \* 1_000_000;/epochIntervalMicrosecs = ${interval_microsecs};/" src/epoch/EpochManager.sol
+            ;;
+        *)
+            log_error "Unsupported operating system: $os"
+            exit 1
+            ;;
+    esac
     
     log_success "EpochManager.sol updated with ${interval_hours} hour interval"
 }
@@ -167,6 +196,10 @@ restore_epoch_manager() {
 main() {
     # Parse command line arguments
     parse_arguments "$@"
+    
+    # Detect and log operating system
+    local os=$(detect_os)
+    log_info "Detected operating system: $os"
     
     log_step "Starting Gravity Genesis generation process..."
     log_info "Epoch interval: ${EPOCH_INTERVAL_HOURS} hours"
