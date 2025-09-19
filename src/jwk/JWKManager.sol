@@ -154,7 +154,8 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
 
     /// @inheritdoc IJWKManager
     function upsertObservedJWKs(
-        ProviderJWKs[] calldata providerJWKsArray
+        ProviderJWKs[] calldata providerJWKsArray,
+        CrossChainParams[] calldata crossChainParamsArray
     ) external onlySystemCaller {
         // Update observedJWKs
         for (uint256 i = 0; i < providerJWKsArray.length; i++) {
@@ -169,7 +170,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // 就IValidatorManager.registerValidator(params);
         // 如果是StakeEvent
         // 就是IDelegation.delegate(params);
-        _processStakeEventJWKs(providerJWKsArray);
+        _handleCrossChainEvent(crossChainParamsArray);
 
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
@@ -646,97 +647,47 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         supportedProviders[index - 1].onchain_block_number = blockNumber;
     }
 
-    /**
-     * @dev Processes special stake event JWKs and dispatches to appropriate handlers
-     * @param providerJWKsArray Array of provider JWK sets to process
-     */
-    function _processStakeEventJWKs(ProviderJWKs[] calldata providerJWKsArray) internal {
-        for (uint256 i = 0; i < providerJWKsArray.length; i++) {
-            ProviderJWKs calldata providerJWKs = providerJWKsArray[i];
-            
-            for (uint256 j = 0; j < providerJWKs.jwks.length; j++) {
-                JWK calldata jwk = providerJWKs.jwks[j];
-
-                if (jwk.variant == 0) {
-                    continue;
-                }
-
-                if (jwk.variant != 1) {
-                    revert InvalidJWKVariant(jwk.variant);
-                }
-
-                // UnsupportedJWK memory unsupportedJWK = abi.decode(jwk.data, (UnsupportedJWK));
-                // // 根据variant派发到不同的处理函数
-                // if (keccak256(unsupportedJWK.id) == keccak256(bytes("1"))) {
-                //     // StakeRegisterValidatorEvent - 注册验证者
-                //     _handleValidatorStakeEvent(jwk, providerJWKs.issuer);
-                // } else if (keccak256(unsupportedJWK.id) == keccak256(bytes("2"))) {
-                //     // StakeEvent - 普通质押
-                //     _handleDelegationStakeEvent(jwk, providerJWKs.issuer);
-                // }
+    function _handleCrossChainEvent(CrossChainParams[] calldata crossChainParams) internal {
+        for (uint256 i = 0; i < crossChainParams.length; i++) {
+            CrossChainParams calldata crossChainParam = crossChainParams[i];
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
+                // StakeRegisterValidatorEvent - 注册验证者
+                _handleValidatorStakeEvent(crossChainParam);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("2"))) {
+                // StakeEvent - 普通质押
+                _handleDelegationStakeEvent(crossChainParam);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) {
+                // StakeEvent - 离开验证者集合
+                // _handleLeaveValidatorSetEvent(jwk, providerJWKs.issuer);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("4"))) {
+                // StakeEvent - 加入验证者集合
+                // _handleUndelegationEvent(jwk, providerJWKs.issuer);
             }
         }
     }
 
-    /**
-     * @dev Handles validator stake event (variant = 2)
-     * @param jwk The JWK containing validator registration parameters
-     */
-    function _handleValidatorStakeEvent(JWK calldata jwk, string memory issuer) internal {
-        // 从JWK data中解析StakeRegisterValidatorEvent参数
-        (address user, uint256 amount, bytes memory validatorParams, uint256 blockNumber) = _extractValidatorStakeParams(jwk.data);
-        
-        _updateOnchainBlockNumber(issuer, blockNumber);
-        
-        IValidatorManager.ValidatorRegistrationParams memory params = abi.decode(validatorParams, (IValidatorManager.ValidatorRegistrationParams));
-        
-        // 调用IValidatorManager.registerValidator
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal{value: amount}(user, params);
-        
+    function _handleValidatorStakeEvent(
+        CrossChainParams calldata crossChainParam
+    ) internal {
+        _updateOnchainBlockNumber(
+            crossChainParam.issuer,
+            crossChainParam.blockNumber
+        );
+        // TODO: crossChainParam.shares和amount应该统一还是不统一？ 好像也不对啊
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal(crossChainParam.targetValidator, crossChainParam.shares, crossChainParam.validatorParams);
+
         // 发出事件
-        emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);
+        // emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);
     }
 
-    /**
-     * @dev Handles delegation stake event (variant = 3)
-     * @param jwk The JWK containing delegation parameters
-     */
-    function _handleDelegationStakeEvent(JWK calldata jwk, string memory issuer) internal {
+    function _handleDelegationStakeEvent(CrossChainParams calldata crossChainParam) internal {
         // 从JWK data中解析StakeEvent参数
-        (address user, uint256 amount, address targetValidator, uint256 blockNumber) = _extractDelegationStakeParams(jwk.data);
-        
-        _updateOnchainBlockNumber(issuer, blockNumber);
-        
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);        
         // 调用IDelegation.delegate
-        IDelegation(DELEGATION_ADDR).delegate{value: amount}(targetValidator);
+        // TODO: crossChainParam.shares和amount应该统一还是不统一？ 好像也不对啊
+        IDelegation(DELEGATION_ADDR).delegate{value: crossChainParam.shares}(crossChainParam.targetValidator);
         
         // 发出事件
-        emit IValidatorManager.StakeEvent(user, amount, targetValidator);
-    }
-
-    /**
-     * @dev Extracts validator stake parameters from JWK data
-     * @param data The encoded JWK data
-     * @return user The user address
-     * @return amount The stake amount
-     * @return validatorParams The encoded validator registration parameters
-     */
-    function _extractValidatorStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, bytes memory validatorParams, uint256 blockNumber) {
-        // 先解压成Un supportedJWK
-        UnsupportedJWK memory unsupportedJWK = abi.decode(data, (UnsupportedJWK));
-        validatorParams = unsupportedJWK.payload;
-        return abi.decode(validatorParams, (address, uint256, bytes, uint256));
-    }
-
-    /**
-     * @dev Extracts delegation stake parameters from JWK data
-     * @param data The encoded JWK data
-     * @return user The user address
-     * @return amount The stake amount
-     * @return targetValidator The target validator address
-     * @return blockNumber The block number
-     */
-    function _extractDelegationStakeParams(bytes calldata data) internal pure returns (address user, uint256 amount, address targetValidator, uint256 blockNumber) {
-        return abi.decode(data, (address, uint256, address, uint256));
+        // emit IValidatorManager.StakeEvent(crossChainParam.user, crossChainParam.shares, crossChainParam.targetValidator);
     }
 }

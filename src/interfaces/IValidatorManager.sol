@@ -173,8 +173,9 @@ interface IValidatorManager is IReconfigurableModule {
 
     function registerValidatorInternal(
         address validator,
+        uint256 amount,
         ValidatorRegistrationParams calldata params
-    ) external payable;
+    ) external;
 
     /**
      * @dev Join validator set

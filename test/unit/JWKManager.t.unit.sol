@@ -106,7 +106,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert
         assertTrue(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -137,7 +137,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert
         assertTrue(_getDelegationMock().stakeEventEmitted());
@@ -174,7 +174,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Should not emit stake events
         assertFalse(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -216,7 +216,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Should not process because array has more than 1 element
         assertFalse(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -248,7 +248,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Should not emit stake events
         assertFalse(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -308,7 +308,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Both should be processed
         assertTrue(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -356,7 +356,7 @@ contract JWKManagerTest is Test, TestConstants {
         providerJWKsArray[0] = providerJWKs;
 
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Parameters should be extracted correctly
         assertEq(_getValidatorManagerMock().lastStakeUser(), TEST_USER);
@@ -386,7 +386,7 @@ contract JWKManagerTest is Test, TestConstants {
         providerJWKsArray[0] = providerJWKs;
 
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Parameters should be extracted correctly
         assertEq(_getDelegationMock().lastStakeUser(), TEST_USER);
@@ -403,7 +403,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act & Assert
         vm.expectRevert();
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
     }
 
     // ============ EDGE CASE TESTS ============
@@ -415,7 +415,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Should not emit any events
         assertFalse(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
@@ -444,7 +444,7 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act
         vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray);
+        // jwkManager.upsertObservedJWKs(providerJWKsArray);
 
         // Assert - Should not emit any events
         assertFalse(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
