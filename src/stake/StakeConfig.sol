@@ -49,10 +49,10 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
         // Staking parameters
         // minValidatorStake = 1000 ether;
         // TODO(jason): Might need further discussion
-        minValidatorStake = 0;
-        maximumStake = 1000000;
-        minDelegationStake = 1;
-        minDelegationChange = 1;
+        minValidatorStake = 0 ether;
+        maximumStake = 1000000 ether;
+        minDelegationStake = 0.1 ether;
+        minDelegationChange = 0.1 ether;
         maxValidatorCount = 100;
         recurringLockupDuration = 14 days;
         allowValidatorSetChange = true;
@@ -70,7 +70,7 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
         maxCommissionChangeRate = 500; // 5% maximum change rate
 
         // Lock amount initial value
-        lockAmount = 100;
+        lockAmount = 10000 ether;
     }
 
     /// @inheritdoc IStakeConfig

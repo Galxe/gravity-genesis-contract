@@ -162,14 +162,6 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             _upsertProviderJWKs(observedJWKs, providerJWKsArray[i]);
         }
 
-        // 解析特殊的 StakeEventJwk
-        // 写完jwk array后
-        // 解析stake event拿到params
-        // 可以确定每个特殊的JWK里面的[]jwk数组只会有一个元素
-        // 如果是StakeRegisterValidatorEvent
-        // 就IValidatorManager.registerValidator(params);
-        // 如果是StakeEvent
-        // 就是IDelegation.delegate(params);
         _handleCrossChainEvent(crossChainParamsArray);
 
         // Regenerate patchedJWKs
@@ -673,7 +665,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             crossChainParam.issuer,
             crossChainParam.blockNumber
         );
-        // TODO: crossChainParam.shares和amount应该统一还是不统一？ 好像也不对啊
+        // TODO: unify shares and amount
         IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal(crossChainParam.targetValidator, crossChainParam.shares, crossChainParam.validatorParams);
 
         // 发出事件
@@ -684,7 +676,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         // 从JWK data中解析StakeEvent参数
         _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);        
         // 调用IDelegation.delegate
-        // TODO: crossChainParam.shares和amount应该统一还是不统一？ 好像也不对啊
+        // TODO: unify shares and amount
         IDelegation(DELEGATION_ADDR).delegate{value: crossChainParam.shares}(crossChainParam.targetValidator);
         
         // 发出事件
