@@ -168,12 +168,22 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
     }
 
+    
     /// @inheritdoc IValidatorManager
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable nonReentrant whenNotPaused {
         address validator = msg.sender;
-
+        uint256 amount = msg.value;
+        this.registerValidatorInternal(validator, amount, params);
+    }
+    
+    /// @inheritdoc IValidatorManager
+    function registerValidatorInternal(
+        address validator,
+        uint256 amount,
+        ValidatorRegistrationParams calldata params
+    ) external onlySystemJWKCaller {
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         // TODO: remove this
@@ -191,8 +201,12 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             validatorInfos[validator].registered
         );
 
+        // check下溢检查
+        if (amount < IStakeConfig(STAKE_CONFIG_ADDR).lockAmount()) {
+            revert InvalidStakeAmount(amount, IStakeConfig(STAKE_CONFIG_ADDR).lockAmount());
+        }
         // check stake requirements
-        uint256 stakeMinusLock = msg.value - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
+        uint256 stakeMinusLock = amount- IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
         if (stakeMinusLock < minStake) {
             revert InvalidStakeAmount(stakeMinusLock, minStake);
@@ -214,7 +228,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _monikerSet[monikerHash] = true;
 
         // initial stake
-        StakeCredit(payable(stakeCreditAddress)).delegate{ value: msg.value }(validator);
+        // TODO: fix
+        // StakeCredit(payable(stakeCreditAddress)).delegate{ value: amount }(validator);
 
         emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);

@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import "@src/interfaces/IParamSubscriber.sol";
+import "@src/interfaces/IValidatorManager.sol";
 
 /**
  * @title IJWKManager
@@ -21,6 +22,7 @@ interface IJWKManager is IParamSubscriber {
     error UnknownPatchVariant();
     error NotAuthorized();
     error InvalidJWKVersion(uint64 expected, uint64 actual);
+    error InvalidJWKVariant(uint8 variant);
 
     // ======== Struct Definitions ========
 
@@ -29,6 +31,7 @@ interface IJWKManager is IParamSubscriber {
         string name; // Provider name, e.g., "https://accounts.google.com"
         string configUrl; // OpenID configuration URL
         bool active; // Whether the provider is active
+        uint256 onchain_block_number; // Onchain block number
     }
 
     /// @dev RSA JWK structure
@@ -81,6 +84,19 @@ interface IJWKManager is IParamSubscriber {
         JWK jwk; // For UpsertJWK
     }
 
+    struct CrossChainParams {
+        // 1 => StakeRegisterValidatorEvent
+        // 2 => DelegationEvent
+        // 3 => LeaveValidatorSetEvent
+        // 4 => UndelegationEvent
+        bytes id;
+        IValidatorManager.ValidatorRegistrationParams validatorParams;
+        address targetValidator;
+        uint256 shares;
+        uint256 blockNumber;
+        string issuer;
+    }
+
     // ======== Event Definitions ========
     event OIDCProviderAdded(string indexed name, string configUrl);
     event OIDCProviderRemoved(string indexed name);
@@ -126,7 +142,8 @@ interface IJWKManager is IParamSubscriber {
      * @param providerJWKsArray Array of provider JWK sets to update
      */
     function upsertObservedJWKs(
-        ProviderJWKs[] calldata providerJWKsArray
+        ProviderJWKs[] calldata providerJWKsArray,
+        CrossChainParams[] calldata crossChainParamsArray
     ) external;
 
     /**
@@ -301,7 +318,7 @@ interface IJWKManager is IParamSubscriber {
      */
     function supportedProviders(
         uint256 index
-    ) external view returns (string memory name, string memory configUrl, bool active);
+    ) external view returns (string memory name, string memory configUrl, bool active, uint256 onchain_block_number);
 
     /**
      * @dev Gets the index of a provider by name

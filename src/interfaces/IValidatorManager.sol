@@ -55,7 +55,6 @@ interface IValidatorManager is IReconfigurableModule {
         Commission commission; // Changed from uint64 commissionRate to Commission struct
         string moniker;
         address initialOperator;
-        address initialVoter;
         address initialBeneficiary; // Passed directly to StakeCredit
         // Network addresses for Aptos compatibility
         bytes validatorNetworkAddresses; // BCS serialized Vec<NetworkAddress>
@@ -70,6 +69,18 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 totalVotingPower; // Current total voting power
         uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
     }
+
+    event StakeRegisterValidatorEvent(
+            address user,
+            uint256 amount,
+            bytes ValidatorRegistrationParams
+        );
+    
+    event StakeEvent(
+            address user,
+            uint256 amount,
+            address targetValidator
+        );
 
     /// Validator registration events
     event ValidatorRegistered(
@@ -159,6 +170,12 @@ interface IValidatorManager is IReconfigurableModule {
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable;
+
+    function registerValidatorInternal(
+        address validator,
+        uint256 amount,
+        ValidatorRegistrationParams calldata params
+    ) external;
 
     /**
      * @dev Join validator set

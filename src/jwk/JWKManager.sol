@@ -8,6 +8,8 @@ import "@src/interfaces/IEpochManager.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 import "@src/interfaces/IJWKManager.sol";
+import "@src/interfaces/IValidatorManager.sol";
+import "@src/interfaces/IDelegation.sol";
 
 /**
  * @title JWKManager
@@ -124,7 +126,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
 
         if (index == 0) {
             // Add new provider
-            supportedProviders.push(OIDCProvider({ name: name, configUrl: configUrl, active: true }));
+            supportedProviders.push(OIDCProvider({ name: name, configUrl: configUrl, active: true, onchain_block_number: 0 }));
             providerIndex[name] = supportedProviders.length;
             emit OIDCProviderAdded(name, configUrl);
         } else {
@@ -148,36 +150,19 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         emit OIDCProviderRemoved(name);
     }
 
-    /// @inheritdoc IJWKManager
-    function getActiveProviders() external view returns (OIDCProvider[] memory) {
-        uint256 activeCount = 0;
-        for (uint256 i = 0; i < supportedProviders.length; i++) {
-            if (supportedProviders[i].active) {
-                activeCount++;
-            }
-        }
-
-        OIDCProvider[] memory activeProviders = new OIDCProvider[](activeCount);
-        uint256 index = 0;
-        for (uint256 i = 0; i < supportedProviders.length; i++) {
-            if (supportedProviders[i].active) {
-                activeProviders[index] = supportedProviders[i];
-                index++;
-            }
-        }
-        return activeProviders;
-    }
-
     // ======== ObservedJWKs Management (called by consensus layer) ========
 
     /// @inheritdoc IJWKManager
     function upsertObservedJWKs(
-        ProviderJWKs[] calldata providerJWKsArray
+        ProviderJWKs[] calldata providerJWKsArray,
+        CrossChainParams[] calldata crossChainParamsArray
     ) external onlySystemCaller {
         // Update observedJWKs
         for (uint256 i = 0; i < providerJWKsArray.length; i++) {
             _upsertProviderJWKs(observedJWKs, providerJWKsArray[i]);
         }
+
+        _handleCrossChainEvent(crossChainParamsArray);
 
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
@@ -287,6 +272,26 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         }
 
         emit FederatedJWKsUpdated(msg.sender, "");
+    }
+
+    /// @inheritdoc IJWKManager
+    function getActiveProviders() external view returns (OIDCProvider[] memory) {
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < supportedProviders.length; i++) {
+            if (supportedProviders[i].active) {
+                activeCount++;
+            }
+        }
+
+        OIDCProvider[] memory activeProviders = new OIDCProvider[](activeCount);
+        uint256 index = 0;
+        for (uint256 i = 0; i < supportedProviders.length; i++) {
+            if (supportedProviders[i].active) {
+                activeProviders[index] = supportedProviders[i];
+                index++;
+            }
+        }
+        return activeProviders;
     }
 
     // ======== Query Functions ========
@@ -622,5 +627,59 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         } else {
             return 0;
         }
+    }
+
+    // ======== Stake Event Processing ========
+
+    function _updateOnchainBlockNumber(string memory issuer, uint256 blockNumber) internal {
+        uint256 index = providerIndex[issuer];
+        if (index == 0) {
+            revert IssuerNotFound();
+        }
+        supportedProviders[index - 1].onchain_block_number = blockNumber;
+    }
+
+    function _handleCrossChainEvent(CrossChainParams[] calldata crossChainParams) internal {
+        for (uint256 i = 0; i < crossChainParams.length; i++) {
+            CrossChainParams calldata crossChainParam = crossChainParams[i];
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
+                // StakeRegisterValidatorEvent - 注册验证者
+                _handleValidatorStakeEvent(crossChainParam);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("2"))) {
+                // StakeEvent - 普通质押
+                _handleDelegationStakeEvent(crossChainParam);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) {
+                // StakeEvent - 离开验证者集合
+                // _handleLeaveValidatorSetEvent(jwk, providerJWKs.issuer);
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("4"))) {
+                // StakeEvent - 加入验证者集合
+                // _handleUndelegationEvent(jwk, providerJWKs.issuer);
+            }
+        }
+    }
+
+    function _handleValidatorStakeEvent(
+        CrossChainParams calldata crossChainParam
+    ) internal {
+        _updateOnchainBlockNumber(
+            crossChainParam.issuer,
+            crossChainParam.blockNumber
+        );
+        // TODO: unify shares and amount
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal(crossChainParam.targetValidator, crossChainParam.shares, crossChainParam.validatorParams);
+
+        // 发出事件
+        // emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);
+    }
+
+    function _handleDelegationStakeEvent(CrossChainParams calldata crossChainParam) internal {
+        // 从JWK data中解析StakeEvent参数
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);        
+        // 调用IDelegation.delegate
+        // TODO: unify shares and amount
+        IDelegation(DELEGATION_ADDR).delegate{value: crossChainParam.shares}(crossChainParam.targetValidator);
+        
+        // 发出事件
+        // emit IValidatorManager.StakeEvent(crossChainParam.user, crossChainParam.shares, crossChainParam.targetValidator);
     }
 }
