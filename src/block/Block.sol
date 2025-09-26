@@ -7,6 +7,7 @@ import "@src/interfaces/IValidatorManager.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/ITimestamp.sol";
 import "@src/interfaces/IBlock.sol";
+import "@src/interfaces/IReconfigurationWithDKG.sol";
 import "@openzeppelin-upgrades/proxy/utils/Initializable.sol";
 
 contract Block is System, IBlock, Initializable {
@@ -49,6 +50,50 @@ contract Block is System, IBlock, Initializable {
         // Check if epoch transition is needed
         if (IEpochManager(EPOCH_MANAGER_ADDR).canTriggerEpochTransition()) {
             IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
+        }
+    }
+
+    /// @inheritdoc IBlock
+    function blockPrologueExt(
+        address proposer,
+        uint64[] calldata failedProposerIndices,
+        uint256 timestampMicros
+    ) external onlySystemCaller {
+        // 1. Validate proposer
+        if (proposer != SYSTEM_CALLER && !IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(proposer)) {
+            revert InvalidProposer(proposer);
+        }
+
+        // 2. Calculate proposer index
+        uint64 proposerIndex;
+        bool hasProposerIndex = false;
+
+        if (proposer != SYSTEM_CALLER) {
+            // Get proposer index from ValidatorManager
+            proposerIndex = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorIndex(proposer);
+            hasProposerIndex = true;
+        }
+        // If proposer == SYSTEM_CALLER, hasProposerIndex remains false
+
+        // 3. Update global timestamp
+        ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(proposer, uint64(timestampMicros));
+
+        // 4. Update validator performance statistics
+        if (hasProposerIndex) {
+            IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
+                proposerIndex, failedProposerIndices
+            );
+        } else {
+            // For VM reserved address, pass invalid index marker
+            IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
+                type(uint64).max, failedProposerIndices
+            );
+        }
+
+        // 5. Check if epoch transition is needed and trigger DKG if necessary
+        if (IEpochManager(EPOCH_MANAGER_ADDR).canTriggerEpochTransition()) {
+            // Try to start DKG reconfiguration process
+            IReconfigurationWithDKG(RECONFIGURATION_WITH_DKG_ADDR).tryStart();
         }
     }
 

@@ -13,6 +13,7 @@ contract TimestampMock {
     uint64 public mockCurrentTime; // Mock current time in seconds
     bool public initialized;
 
+
     function initialize() external {
         // Allow GENESIS_ADDR, SYSTEM_CALLER, and any contract to call initialize
         // This is for testing purposes - in real deployment, only GENESIS_ADDR should be allowed
@@ -44,9 +45,18 @@ contract TimestampMock {
         return mockCurrentTime;
     }
 
+    function setNowMicroseconds(uint64 timeInMicros) external {
+        mockCurrentTimeMicros = timeInMicros;
+    }
+
+    function nowMicroseconds() external view returns (uint64) {
+        return mockCurrentTimeMicros;
+    }
+
     function reset() external {
         delete lastCall;
         totalCalls = 0;
         mockCurrentTime = 0;
+        mockCurrentTimeMicros = 0;
     }
 }

@@ -33,11 +33,14 @@ pub const STAKE_CREDIT_ADDR: Address = address!("0000000000000000000000000000000
 pub const GOV_TOKEN_ADDR: Address = address!("000000000000000000000000000000000000201d");
 pub const GOVERNOR_ADDR: Address = address!("000000000000000000000000000000000000201e");
 pub const TIMELOCK_ADDR: Address = address!("000000000000000000000000000000000000201f");
+pub const RANDOMNESS_CONFIG_ADDR: Address = address!("0000000000000000000000000000000000002020");
+pub const DKG_ADDR: Address = address!("0000000000000000000000000000000000002021");
+pub const RECONFIGURATION_WITH_DKG_ADDR: Address = address!("0000000000000000000000000000000000002022");
 
 // this address is used to call evm. It's not used for gravity pre compile contract
 pub const SYSTEM_CALLER: Address = address!("0000000000000000000000000000000000002000");
 
-pub const CONTRACTS: [(&str, Address); 18] = [
+pub const CONTRACTS: [(&str, Address); 21] = [
     ("System", SYSTEM_CONTRACT_ADDRESS),
     ("SystemReward", SYSTEM_REWARD_ADDR),
     ("StakeConfig", STAKE_CONFIG_ADDR),
@@ -59,6 +62,9 @@ pub const CONTRACTS: [(&str, Address); 18] = [
     ("StakeCredit", STAKE_CREDIT_ADDR),
     ("Delegation", DELEGATION_ADDR),
     ("GovHub", GOV_HUB_ADDR),
+    ("RandomnessConfig", RANDOMNESS_CONFIG_ADDR),
+    ("DKG", DKG_ADDR),
+    ("ReconfigurationWithDKG", RECONFIGURATION_WITH_DKG_ADDR),
 ];
 
 pub const SYSTEM_ACCOUNT_INFO: AccountInfo = AccountInfo {
