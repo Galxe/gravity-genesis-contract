@@ -116,7 +116,7 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     ) private {
         uint256 toLock = IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         if (initialAmount <= toLock || validator == address(0)) {
-            revert StakeCredit__WrongInitContext();
+            revert StakeCredit__WrongInitContext(initialAmount, toLock, validator);
         }
 
         // Mint initial shares
