@@ -62,6 +62,34 @@ def create_genesis_json(
     # Replace the alloc field with merged data
     genesis["alloc"] = merged_alloc
     
+    # Set large balance for system addresses
+    print("🔧 Setting large balance for system addresses...")
+    system_addresses = {
+        "0x0000000000000000000000000000000000002010": "VALIDATOR_MANAGER_ADDR",
+        "0x0000000000000000000000000000000000002002": "JWK_MANAGER_ADDR"
+    }
+    
+    # Use the same large balance as other accounts
+    large_balance = "0x1999999999999999999999999999999999999999999999999999999999999999"
+    
+    for addr, name in system_addresses.items():
+        if addr in genesis["alloc"]:
+            # Preserve existing account data but update balance
+            if "balance" in genesis["alloc"][addr]:
+                old_balance = genesis["alloc"][addr]["balance"]
+                print(f"  - {name} ({addr}): {old_balance} -> {large_balance}")
+            else:
+                print(f"  - {name} ({addr}): setting balance to {large_balance}")
+            
+            genesis["alloc"][addr]["balance"] = large_balance
+        else:
+            # Create new account entry if it doesn't exist
+            print(f"  - {name} ({addr}): creating new account with balance {large_balance}")
+            genesis["alloc"][addr] = {
+                "balance": large_balance,
+                "nonce": 0
+            }
+    
     # Write the final genesis.json
     print(f"💾 Writing genesis.json to {output_file}")
     try:
