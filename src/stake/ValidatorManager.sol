@@ -175,15 +175,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     ) external payable nonReentrant whenNotPaused {
         address validator = msg.sender;
         uint256 amount = msg.value;
-        this.registerValidatorInternal(validator, amount, params);
-    }
-    
-    /// @inheritdoc IValidatorManager
-    function registerValidatorInternal(
-        address validator,
-        uint256 amount,
-        ValidatorRegistrationParams calldata params
-    ) external onlySystemJWKCaller {
+
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         // TODO: remove this
@@ -229,7 +221,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // initial stake
         // TODO: fix
-        // StakeCredit(payable(stakeCreditAddress)).delegate{ value: amount }(validator);
+        StakeCredit(payable(stakeCreditAddress)).delegate{ value: amount }(validator);
 
         emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);
