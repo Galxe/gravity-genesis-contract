@@ -11,6 +11,7 @@ contract TimestampMock {
     UpdateCall public lastCall;
     uint256 public totalCalls;
     uint64 public mockCurrentTime; // Mock current time in seconds
+    uint64 public mockCurrentTimeMicros; // Mock current time in microseconds
 
     function updateGlobalTime(address proposer, uint64 timestampMicros) external {
         lastCall.proposer = proposer;
@@ -33,9 +34,18 @@ contract TimestampMock {
         return mockCurrentTime;
     }
 
+    function setNowMicroseconds(uint64 timeInMicros) external {
+        mockCurrentTimeMicros = timeInMicros;
+    }
+
+    function nowMicroseconds() external view returns (uint64) {
+        return mockCurrentTimeMicros;
+    }
+
     function reset() external {
         delete lastCall;
         totalCalls = 0;
         mockCurrentTime = 0;
+        mockCurrentTimeMicros = 0;
     }
 }
