@@ -666,7 +666,10 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             crossChainParam.blockNumber
         );
         // TODO: unify shares and amount
-        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidatorInternal(crossChainParam.targetValidator, crossChainParam.shares, crossChainParam.validatorParams);
+        // TODO: We still need to record the validator address here
+        // so this interface seems to need modification to pass the correct address.
+        // However, we can temporarily not support stake to be validator but need to design this properly
+        IValidatorManager(VALIDATOR_MANAGER_ADDR).registerValidator{value: crossChainParam.shares}(crossChainParam.validatorParams);
 
         // 发出事件
         // emit IValidatorManager.StakeRegisterValidatorEvent(user, amount, validatorParams);
