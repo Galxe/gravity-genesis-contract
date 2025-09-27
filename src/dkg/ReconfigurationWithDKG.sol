@@ -7,6 +7,9 @@ import "@src/interfaces/IReconfigurationWithDKG.sol";
 import "@src/interfaces/IDKG.sol";
 import "@src/interfaces/IEpochManager.sol";
 import "@src/interfaces/IValidatorManager.sol";
+import "@src/interfaces/IStakeConfig.sol";
+import "@src/interfaces/IStakeCredit.sol";
+import "@src/interfaces/IValidatorPerformanceTracker.sol";
 
 /**
  * @title ReconfigurationWithDKG
@@ -152,9 +155,22 @@ contract ReconfigurationWithDKG is System, Protectable, IReconfigurationWithDKG 
      * @return Array of current validator consensus information
      */
     function _getCurrentValidatorConsensusInfos() internal view returns (IDKG.ValidatorConsensusInfo[] memory) {
-        // This should be implemented to get current validator set from ValidatorManager
-        // For now, return empty array as placeholder
-        return new IDKG.ValidatorConsensusInfo[](0);
+        // Get active validators from ValidatorManager
+        address[] memory activeValidators = IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
+        IDKG.ValidatorConsensusInfo[] memory consensusInfos = new IDKG.ValidatorConsensusInfo[](activeValidators.length);
+        
+        for (uint256 i = 0; i < activeValidators.length; i++) {
+            IValidatorManager.ValidatorInfo memory validatorInfo = 
+                IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorInfo(activeValidators[i]);
+            
+            consensusInfos[i] = IDKG.ValidatorConsensusInfo({
+                addr: activeValidators[i],
+                pkBytes: validatorInfo.consensusPublicKey,
+                votingPower: uint64(validatorInfo.votingPower)
+            });
+        }
+        
+        return consensusInfos;
     }
 
     /**
@@ -162,10 +178,26 @@ contract ReconfigurationWithDKG is System, Protectable, IReconfigurationWithDKG 
      * @return Array of next validator consensus information
      */
     function _getNextValidatorConsensusInfos() internal view returns (IDKG.ValidatorConsensusInfo[] memory) {
-        // This should be implemented to get next validator set from ValidatorManager
-        // For now, return empty array as placeholder
-        return new IDKG.ValidatorConsensusInfo[](0);
+        // For now, simplified implementation - just return current active validators with updated voting power
+        // This can be enhanced later with proper next epoch calculation
+        address[] memory activeValidators = IValidatorManager(VALIDATOR_MANAGER_ADDR).getActiveValidators();
+        IDKG.ValidatorConsensusInfo[] memory consensusInfos = new IDKG.ValidatorConsensusInfo[](activeValidators.length);
+        
+        for (uint256 i = 0; i < activeValidators.length; i++) {
+            IValidatorManager.ValidatorInfo memory validatorInfo = 
+                IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorInfo(activeValidators[i]);
+            
+            // For simplicity, use current voting power (can be enhanced with reward calculation later)
+            consensusInfos[i] = IDKG.ValidatorConsensusInfo({
+                addr: activeValidators[i],
+                pkBytes: validatorInfo.consensusPublicKey,
+                votingPower: uint64(validatorInfo.votingPower)
+            });
+        }
+        
+        return consensusInfos;
     }
+
 
     /**
      * @dev Get current randomness config

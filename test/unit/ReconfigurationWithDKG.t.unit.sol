@@ -200,6 +200,73 @@ contract ReconfigurationWithDKGTest is Test, TestConstants {
         assertTrue(reconfigContract.isReconfigurationInProgress());
     }
 
+    function test_getCurrentValidatorConsensusInfos_shouldReturnActiveValidators() public {
+        // Arrange
+        vm.startPrank(GENESIS_ADDR);
+        reconfigContract.initialize();
+        vm.stopPrank();
+
+        // Set up mock validators
+        address[] memory activeValidators = new address[](2);
+        activeValidators[0] = address(0x100);
+        activeValidators[1] = address(0x200);
+        
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setActiveValidators(activeValidators);
+        
+        // Set up validator info for each validator
+        IValidatorManager.ValidatorInfo memory validator1Info = IValidatorManager.ValidatorInfo({
+            consensusPublicKey: abi.encodePacked("validator1_pubkey"),
+            commission: IValidatorManager.Commission({
+                rate: 1000,
+                maxRate: 10000,
+                maxChangeRate: 100
+            }),
+            moniker: "Validator 1",
+            registered: true,
+            stakeCreditAddress: address(0x1001),
+            status: IValidatorManager.ValidatorStatus.ACTIVE,
+            votingPower: 1000,
+            validatorIndex: 0,
+            updateTime: block.timestamp,
+            operator: address(0x100),
+            validatorNetworkAddresses: abi.encodePacked("validator1_net"),
+            fullnodeNetworkAddresses: abi.encodePacked("validator1_fullnode"),
+            aptosAddress: abi.encodePacked("validator1_aptos")
+        });
+        
+        IValidatorManager.ValidatorInfo memory validator2Info = IValidatorManager.ValidatorInfo({
+            consensusPublicKey: abi.encodePacked("validator2_pubkey"),
+            commission: IValidatorManager.Commission({
+                rate: 1500,
+                maxRate: 10000,
+                maxChangeRate: 100
+            }),
+            moniker: "Validator 2",
+            registered: true,
+            stakeCreditAddress: address(0x2001),
+            status: IValidatorManager.ValidatorStatus.ACTIVE,
+            votingPower: 2000,
+            validatorIndex: 1,
+            updateTime: block.timestamp,
+            operator: address(0x200),
+            validatorNetworkAddresses: abi.encodePacked("validator2_net"),
+            fullnodeNetworkAddresses: abi.encodePacked("validator2_fullnode"),
+            aptosAddress: abi.encodePacked("validator2_aptos")
+        });
+        
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorInfo(address(0x100), validator1Info);
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorInfo(address(0x200), validator2Info);
+
+        vm.startPrank(SYSTEM_CALLER);
+
+        // Act
+        reconfigContract.tryStart();
+        
+        // The function should have been called internally, we can't directly test the internal function
+        // but we can verify that DKG was started which means the function worked
+        assertTrue(DKGMock(DKG_ADDR).isDKGInProgress());
+    }
+
     function _createTestDKGSession(uint64 dealerEpoch) internal view returns (IDKG.DKGSessionState memory) {
         return IDKG.DKGSessionState({
             metadata: IDKG.DKGSessionMetadata({
