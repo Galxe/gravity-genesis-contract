@@ -146,4 +146,39 @@ contract ValidatorManagerMock {
     function onNewEpoch() external {
         // Mock implementation - do nothing
     }
+
+    // Additional mock state for new functions
+    address[] private _activeValidators;
+    address[] private _pendingActiveValidators;
+    mapping(address => IValidatorManager.ValidatorInfo) private _validatorInfos;
+
+    function setActiveValidators(address[] memory validators) external {
+        _activeValidators = validators;
+    }
+
+    function setPendingActiveValidators(address[] memory validators) external {
+        _pendingActiveValidators = validators;
+    }
+    
+    // For backward compatibility - map to existing function
+    function getPendingValidators() external view returns (address[] memory) {
+        return _pendingActiveValidators;
+    }
+
+    function setValidatorInfo(address validator, IValidatorManager.ValidatorInfo memory info) external {
+        _validatorInfos[validator] = info;
+    }
+
+    function getActiveValidators() external view returns (address[] memory) {
+        return _activeValidators;
+    }
+
+    function getPendingActiveValidators() external view returns (address[] memory) {
+        return _pendingActiveValidators;
+    }
+
+    function getValidatorInfo(address validator) external view returns (IValidatorManager.ValidatorInfo memory) {
+        return _validatorInfos[validator];
+    }
+
 }

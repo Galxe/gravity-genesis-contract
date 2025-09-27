@@ -5,10 +5,16 @@ contract EpochManagerMock {
     bool public canTriggerEpochTransitionFlag;
     uint256 public triggerEpochTransitionCallCount;
     bool public initialized;
+    uint256 public mockCurrentEpoch;
 
     function initialize() external {
         initialized = true;
         canTriggerEpochTransitionFlag = true; // Default to true for testing
+        mockCurrentEpoch = 1; // Default epoch
+    }
+
+    function setCurrentEpoch(uint256 epoch) external {
+        mockCurrentEpoch = epoch;
     }
 
     function setCanTriggerEpochTransition(
@@ -30,7 +36,7 @@ contract EpochManagerMock {
         triggerEpochTransitionCallCount = 0;
     }
 
-    function currentEpoch() external pure returns (uint256) {
-        return 1; // Return a default epoch for testing
+    function currentEpoch() external view returns (uint256) {
+        return mockCurrentEpoch;
     }
 }

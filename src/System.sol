@@ -26,6 +26,8 @@ contract System {
     address internal constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
     address internal constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002006;
     address internal constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002007;
+    address internal constant DKG_ADDR = 0x000000000000000000000000000000000000200E;
+    address internal constant RECONFIGURATION_WITH_DKG_ADDR = 0x000000000000000000000000000000000000200f;
 
     /*----------------- errors -----------------*/
     error OnlySystemCaller(address errorAddress);
