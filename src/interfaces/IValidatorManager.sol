@@ -273,6 +273,13 @@ interface IValidatorManager is IReconfigurableModule {
     ) external view returns (bool);
 
     /**
+     * @dev Check if validator is current active validator (bytes version)
+     */
+    function isCurrentEpochValidator(
+        bytes calldata validator
+    ) external view returns (bool);
+
+    /**
      * @dev Get total voting power
      */
     function getTotalVotingPower() external view returns (uint256);

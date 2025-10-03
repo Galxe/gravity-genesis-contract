@@ -130,6 +130,9 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
+            // deploy StakeCredit contract for initial validator
+            address stakeCreditAddress = _deployStakeCreditWithValue(validator, string(abi.encodePacked("VAL", uint256(i))), validator, votingPower);
+            
             // create basic validator info
             validatorInfos[validator] = ValidatorInfo({
                 consensusPublicKey: consensusPublicKey,
@@ -140,7 +143,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                  }),
                 moniker: string(abi.encodePacked("VAL", uint256(i))), // generate default name
                 registered: true,
-                stakeCreditAddress: address(0),
+                stakeCreditAddress: stakeCreditAddress,
                 status: ValidatorStatus.ACTIVE,
                 votingPower: votingPower,
                 validatorIndex: i,
@@ -610,7 +613,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // update voting power
             uint256 currentStake = _getValidatorStake(validator);
             // TODO(jason): need further discussion
-            currentStake = 1;
+            // 或许要先都设置成20000之类的？
+            // currentStake = 1; // 移除硬编码，使用实际的质押金额
 
             if (currentStake >= minStakeRequired) {
                 info.votingPower = currentStake;
@@ -643,6 +647,19 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     ) internal returns (address) {
         address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
         IStakeCredit(creditProxy).initialize{ value: msg.value }(validator, moniker, beneficiary);
+        emit StakeCreditDeployed(validator, creditProxy);
+
+        return creditProxy;
+    }
+
+    function _deployStakeCreditWithValue(
+        address validator,
+        string memory moniker,
+        address beneficiary,
+        uint256 value
+    ) internal returns (address) {
+        address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
+        IStakeCredit(creditProxy).initialize{ value: value }(validator, moniker, beneficiary);
         emit StakeCreditDeployed(validator, creditProxy);
 
         return creditProxy;
@@ -787,6 +804,20 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address validator
     ) public view override returns (bool) {
         return validatorInfos[validator].status == ValidatorStatus.ACTIVE;
+    }
+
+    /// @inheritdoc IValidatorManager
+    function isCurrentEpochValidator(
+        bytes calldata validator
+    ) public view override returns (bool) {
+        // 遍历validatorInfos 查看谁的aptos address等于这个传入参数
+        for (uint256 i = 0; i < activeValidators.length(); i++) {
+            address validatorAddress = activeValidators.at(i);
+            if (keccak256(validatorInfos[validatorAddress].aptosAddress) == keccak256(validator)) {
+                return validatorInfos[validatorAddress].status == ValidatorStatus.ACTIVE;
+            }
+        }
+        return false;
     }
 
     /// @inheritdoc IValidatorManager
