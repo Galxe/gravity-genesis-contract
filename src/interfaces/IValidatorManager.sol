@@ -334,6 +334,16 @@ interface IValidatorManager is IReconfigurableModule {
     ) external view returns (uint64);
 
     /**
+     * @dev Get validator address and index by proposer (Aptos address)
+     * @param proposer Proposer bytes (Aptos address)
+     * @return validatorAddress The validator address
+     * @return validatorIndex The validator index
+     */
+    function getValidatorByProposer(
+        bytes calldata proposer
+    ) external view returns (address validatorAddress, uint64 validatorIndex);
+
+    /**
      * @dev Block producer deposits block rewards
      */
     function deposit() external payable;

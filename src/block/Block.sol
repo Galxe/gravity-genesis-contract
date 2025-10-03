@@ -17,42 +17,35 @@ contract Block is System, IBlock, Initializable {
 
     /// @inheritdoc IBlock
     function blockPrologue(
-        address proposer,
+        bytes calldata proposer,
         uint64[] calldata failedProposerIndices,
         uint256 timestampMicros
     ) external onlySystemCaller {
-        // 1. Validate proposer
-        if (proposer != SYSTEM_CALLER && !IValidatorManager(VALIDATOR_MANAGER_ADDR).isCurrentEpochValidator(proposer)) {
-            revert InvalidProposer(proposer);
-        }
+        // Check if proposer is VM reserved address (32 bytes of zeros)
+        bytes32 vmReservedProposer = bytes32(0);
+        bool isVmReserved = proposer.length == 32 && keccak256(proposer) == keccak256(abi.encodePacked(vmReservedProposer));
 
-        // 2. Calculate proposer index
+        address validatorAddress;
         uint64 proposerIndex;
-        bool hasProposerIndex = false;
 
-        if (proposer != SYSTEM_CALLER) {
-            // Get proposer index from ValidatorManager
-            proposerIndex = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorIndex(proposer);
-            hasProposerIndex = true;
-        }
-        // If proposer == SYSTEM_CALLER, hasProposerIndex remains false
-
-        // 3. Update global timestamp
-        ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(proposer, uint64(timestampMicros));
-
-        // 4. Update validator performance statistics
-        if (hasProposerIndex) {
-            IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
-                proposerIndex, failedProposerIndices
-            );
+        if (isVmReserved) {
+            // VM reserved address
+            validatorAddress = SYSTEM_CALLER;
+            proposerIndex = type(uint64).max;
         } else {
-            // For VM reserved address, pass invalid index marker
-            IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
-                type(uint64).max, failedProposerIndices
-            );
+            // Get validator address and index (will revert if proposer is invalid)
+            (validatorAddress, proposerIndex) = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorByProposer(proposer);
         }
 
-        // 5. Check if epoch transition is needed
+        // Update global timestamp
+        ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(validatorAddress, uint64(timestampMicros));
+
+        // Update validator performance statistics
+        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
+            proposerIndex, failedProposerIndices
+        );
+
+        // Check if epoch transition is needed
         if (IEpochManager(EPOCH_MANAGER_ADDR).canTriggerEpochTransition()) {
             IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
         }

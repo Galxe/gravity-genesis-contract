@@ -844,6 +844,19 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         return uint64(activeValidatorIndex[validator]);
     }
 
+    /// @inheritdoc IValidatorManager
+    function getValidatorByProposer(
+        bytes calldata proposer
+    ) external view override returns (address validatorAddress, uint64 validatorIndex) {
+        for (uint256 i = 0; i < activeValidators.length(); i++) {
+            address validator = activeValidators.at(i);
+            if (keccak256(validatorInfos[validator].aptosAddress) == keccak256(proposer)) {
+                return (validator, uint64(activeValidatorIndex[validator]));
+            }
+        }
+        revert ValidatorNotActive(address(0));
+    }
+
     /**
      * @dev System caller calls, deposit transaction fees of current block as rewards
      */
