@@ -71,7 +71,11 @@ pub fn parse_genesis_config(config: &GenesisConfig) -> GenesisInitParam {
     let voting_powers: Vec<U256> = config
         .voting_powers
         .iter()
-        .map(|power| power.parse::<U256>().expect("Invalid voting power"))
+        .map(|power| {
+            let power_ether = power.parse::<U256>().expect("Invalid voting power");
+            // Convert from ether to wei (1 ether = 10^18 wei)
+            power_ether * U256::from(10).pow(U256::from(18))
+        })
         .collect();
 
     // Convert validator network addresses from hex strings to bytes
