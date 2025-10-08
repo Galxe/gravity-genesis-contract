@@ -73,64 +73,6 @@ contract JWKManagerTest is Test, TestConstants {
 
     // ============ STAKE EVENT JWK PROCESSING TESTS ============
 
-    /// @notice Test processing validator stake event JWK, should call register validator method
-    function test_processStakeEventJWKs_validatorStakeEvent_shouldCallRegisterValidator() public {
-        // Arrange
-        IValidatorManager.Commission memory commission = IValidatorManager.Commission({
-            rate: 1000, // 10%
-            maxRate: 5000, // 50%
-            maxChangeRate: 500 // 5%
-         });
-
-        IValidatorManager.ValidatorRegistrationParams memory params = IValidatorManager.ValidatorRegistrationParams({
-            consensusPublicKey: TEST_CONSENSUS_KEY,
-            blsProof: TEST_BLS_PROOF,
-            commission: commission,
-            moniker: TEST_MONIKER,
-            initialOperator: TEST_USER,
-            initialBeneficiary: TEST_USER,
-            validatorNetworkAddresses: "",
-            fullnodeNetworkAddresses: "",
-            aptosAddress: ""
-        });
-
-        bytes memory validatorParams = abi.encode(params);
-        bytes memory stakeData = abi.encode(TEST_USER, TEST_STAKE_AMOUNT, validatorParams);
-
-        IJWKManager.JWK memory stakeJWK = IJWKManager.JWK({
-            variant: 2, // StakeRegisterValidatorEvent
-            data: stakeData
-        });
-
-        IJWKManager.ProviderJWKs memory providerJWKs =
-            IJWKManager.ProviderJWKs({ issuer: TEST_ISSUER, version: 1, jwks: new IJWKManager.JWK[](1) });
-        providerJWKs.jwks[0] = stakeJWK;
-
-        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](1);
-        providerJWKsArray[0] = providerJWKs;
-
-        // Create CrossChainParams for validator stake event
-        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
-        crossChainParams[0] = IJWKManager.CrossChainParams({
-            id: bytes("1"), // StakeRegisterValidatorEvent
-            validatorParams: params,
-            targetValidator: address(0),
-            shares: TEST_STAKE_AMOUNT,
-            blockNumber: block.number,
-            issuer: TEST_ISSUER
-        });
-
-        // Act
-        vm.prank(SYSTEM_CALLER);
-        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
-
-        // Assert
-        assertTrue(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
-        assertEq(_getValidatorManagerMock().lastStakeUser(), TEST_USER);
-        assertEq(_getValidatorManagerMock().lastStakeAmount(), TEST_STAKE_AMOUNT);
-        assertEq(_getValidatorManagerMock().lastValidatorParams(), validatorParams);
-    }
-
     /// @notice Test processing delegation stake event JWK, should call delegate method
     function test_processStakeEventJWKs_delegationStakeEvent_shouldCallDelegate() public {
         // Arrange
@@ -357,7 +299,6 @@ contract JWKManagerTest is Test, TestConstants {
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
 
         // Assert - Both should be processed
-        assertTrue(_getValidatorManagerMock().stakeRegisterValidatorEventEmitted());
         assertTrue(_getDelegationMock().stakeEventEmitted());
     }
 

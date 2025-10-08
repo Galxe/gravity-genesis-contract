@@ -60,7 +60,8 @@ contract ValidatorManagerMock {
         require(proposer.length >= 20, "Invalid proposer length");
         address addr;
         assembly {
-            addr := shr(96, calldataload(proposer.offset))
+            // Load from offset+12 to skip the first 12 bytes of padding, then shift to get address
+            addr := shr(96, calldataload(add(proposer.offset, 12)))
         }
         require(isCurrentEpochValidatorMap[addr], "ValidatorNotActive");
         return (addr, validatorIndexMap[addr]);
