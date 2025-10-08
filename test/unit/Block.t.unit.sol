@@ -18,7 +18,9 @@ contract BlockTest is Test, TestConstants {
     EpochManagerMock epochManager;
 
     // Helper function to convert address to bytes (32 bytes format for Aptos address)
-    function addressToBytes32(address addr) internal pure returns (bytes memory) {
+    function addressToBytes32(
+        address addr
+    ) internal pure returns (bytes memory) {
         return abi.encodePacked(bytes12(0), bytes20(addr));
     }
 

@@ -131,8 +131,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
             // deploy StakeCredit contract for initial validator
-            address stakeCreditAddress = _deployStakeCreditWithValue(validator, string(abi.encodePacked("VAL", uint256(i))), validator, votingPower);
-            
+            address stakeCreditAddress = _deployStakeCreditWithValue(
+                validator, string(abi.encodePacked("VAL", uint256(i))), validator, votingPower
+            );
+
             // create basic validator info
             validatorInfos[validator] = ValidatorInfo({
                 consensusPublicKey: consensusPublicKey,
@@ -171,7 +173,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
     }
 
-    
     /// @inheritdoc IValidatorManager
     function registerValidator(
         ValidatorRegistrationParams calldata params
@@ -201,7 +202,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             revert InvalidStakeAmount(amount, IStakeConfig(STAKE_CONFIG_ADDR).lockAmount());
         }
         // check stake requirements
-        uint256 stakeMinusLock = amount- IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
+        uint256 stakeMinusLock = amount - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
         if (stakeMinusLock < minStake) {
             revert InvalidStakeAmount(stakeMinusLock, minStake);

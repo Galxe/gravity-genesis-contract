@@ -23,7 +23,8 @@ contract Block is System, IBlock, Initializable {
     ) external onlySystemCaller {
         // Check if proposer is VM reserved address (32 bytes of zeros)
         bytes32 vmReservedProposer = bytes32(0);
-        bool isVmReserved = proposer.length == 32 && keccak256(proposer) == keccak256(abi.encodePacked(vmReservedProposer));
+        bool isVmReserved =
+            proposer.length == 32 && keccak256(proposer) == keccak256(abi.encodePacked(vmReservedProposer));
 
         address validatorAddress;
         uint64 proposerIndex;
@@ -34,7 +35,8 @@ contract Block is System, IBlock, Initializable {
             proposerIndex = type(uint64).max;
         } else {
             // Get validator address and index (will revert if proposer is invalid)
-            (validatorAddress, proposerIndex) = IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorByProposer(proposer);
+            (validatorAddress, proposerIndex) =
+                IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorByProposer(proposer);
         }
 
         // Update global timestamp

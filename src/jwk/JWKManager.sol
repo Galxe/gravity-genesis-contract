@@ -126,7 +126,9 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
 
         if (index == 0) {
             // Add new provider
-            supportedProviders.push(OIDCProvider({ name: name, configUrl: configUrl, active: true, onchain_block_number: 0 }));
+            supportedProviders.push(
+                OIDCProvider({ name: name, configUrl: configUrl, active: true, onchain_block_number: 0 })
+            );
             providerIndex[name] = supportedProviders.length;
             emit OIDCProviderAdded(name, configUrl);
         } else {
@@ -639,7 +641,9 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         supportedProviders[index - 1].onchain_block_number = blockNumber;
     }
 
-    function _handleCrossChainEvent(CrossChainParams[] calldata crossChainParams) internal {
+    function _handleCrossChainEvent(
+        CrossChainParams[] calldata crossChainParams
+    ) internal {
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
             if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
@@ -662,19 +666,18 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     function _handleValidatorStakeEvent(
         CrossChainParams calldata crossChainParam
     ) internal {
-        _updateOnchainBlockNumber(
-            crossChainParam.issuer,
-            crossChainParam.blockNumber
-        );
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
     }
 
-    function _handleDelegationStakeEvent(CrossChainParams calldata crossChainParam) internal {
+    function _handleDelegationStakeEvent(
+        CrossChainParams calldata crossChainParam
+    ) internal {
         // 从JWK data中解析StakeEvent参数
-        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);        
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
         // 调用IDelegation.delegate
         // TODO: unify shares and amount
-        IDelegation(DELEGATION_ADDR).delegate{value: crossChainParam.shares}(crossChainParam.targetValidator);
-        
+        IDelegation(DELEGATION_ADDR).delegate{ value: crossChainParam.shares }(crossChainParam.targetValidator);
+
         // 发出事件
         // emit IValidatorManager.StakeEvent(crossChainParam.user, crossChainParam.shares, crossChainParam.targetValidator);
     }

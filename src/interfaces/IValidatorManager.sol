@@ -70,17 +70,9 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
     }
 
-    event StakeRegisterValidatorEvent(
-            address user,
-            uint256 amount,
-            bytes ValidatorRegistrationParams
-        );
-    
-    event StakeEvent(
-            address user,
-            uint256 amount,
-            address targetValidator
-        );
+    event StakeRegisterValidatorEvent(address user, uint256 amount, bytes ValidatorRegistrationParams);
+
+    event StakeEvent(address user, uint256 amount, address targetValidator);
 
     /// Validator registration events
     event ValidatorRegistered(
