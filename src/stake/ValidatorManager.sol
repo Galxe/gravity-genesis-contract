@@ -211,7 +211,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address beneficiary = params.initialBeneficiary == address(0) ? validator : params.initialBeneficiary;
 
         // deploy StakeCredit contract
-        address stakeCreditAddress = _deployStakeCredit(validator, params.moniker, beneficiary);
+        address stakeCreditAddress = _deployStakeCreditWithValue(validator, params.moniker, beneficiary, msg.value);
 
         // create and store validator info
         _createValidatorInfo(validator, params, stakeCreditAddress);
@@ -637,21 +637,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         validatorSetData.totalVotingPower = newTotalVotingPower;
     }
 
-    /**
-     * @dev 部署StakeCredit合约
-     */
-    function _deployStakeCredit(
-        address validator,
-        string memory moniker,
-        address beneficiary
-    ) internal returns (address) {
-        address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
-        IStakeCredit(creditProxy).initialize{ value: msg.value }(validator, moniker, beneficiary);
-        emit StakeCreditDeployed(validator, creditProxy);
-
-        return creditProxy;
-    }
-
     function _deployStakeCreditWithValue(
         address validator,
         string memory moniker,
@@ -810,7 +795,6 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     function isCurrentEpochValidator(
         bytes calldata validator
     ) public view override returns (bool) {
-        // 遍历validatorInfos 查看谁的aptos address等于这个传入参数
         for (uint256 i = 0; i < activeValidators.length(); i++) {
             address validatorAddress = activeValidators.at(i);
             if (keccak256(validatorInfos[validatorAddress].aptosAddress) == keccak256(validator)) {
