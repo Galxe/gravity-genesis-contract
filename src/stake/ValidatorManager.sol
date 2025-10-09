@@ -130,6 +130,11 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
             if (votingPower == 0) revert InvalidVotingPower(votingPower);
 
+            // deploy StakeCredit contract for initial validator
+            address stakeCreditAddress = _deployStakeCreditWithValue(
+                validator, string(abi.encodePacked("VAL", uint256(i))), validator, votingPower
+            );
+
             // create basic validator info
             validatorInfos[validator] = ValidatorInfo({
                 consensusPublicKey: consensusPublicKey,
@@ -140,7 +145,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                  }),
                 moniker: string(abi.encodePacked("VAL", uint256(i))), // generate default name
                 registered: true,
-                stakeCreditAddress: address(0),
+                stakeCreditAddress: stakeCreditAddress,
                 status: ValidatorStatus.ACTIVE,
                 votingPower: votingPower,
                 validatorIndex: i,
@@ -168,22 +173,13 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         }
     }
 
-    
     /// @inheritdoc IValidatorManager
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable nonReentrant whenNotPaused {
         address validator = msg.sender;
         uint256 amount = msg.value;
-        this.registerValidatorInternal(validator, amount, params);
-    }
-    
-    /// @inheritdoc IValidatorManager
-    function registerValidatorInternal(
-        address validator,
-        uint256 amount,
-        ValidatorRegistrationParams calldata params
-    ) external onlySystemJWKCaller {
+
         // validate params
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         // TODO: remove this
@@ -206,7 +202,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             revert InvalidStakeAmount(amount, IStakeConfig(STAKE_CONFIG_ADDR).lockAmount());
         }
         // check stake requirements
-        uint256 stakeMinusLock = amount- IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
+        uint256 stakeMinusLock = amount - IStakeConfig(STAKE_CONFIG_ADDR).lockAmount();
         uint256 minStake = IStakeConfig(STAKE_CONFIG_ADDR).minValidatorStake();
         if (stakeMinusLock < minStake) {
             revert InvalidStakeAmount(stakeMinusLock, minStake);
@@ -216,7 +212,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         address beneficiary = params.initialBeneficiary == address(0) ? validator : params.initialBeneficiary;
 
         // deploy StakeCredit contract
-        address stakeCreditAddress = _deployStakeCredit(validator, params.moniker, beneficiary);
+        address stakeCreditAddress = _deployStakeCreditWithValue(validator, params.moniker, beneficiary, msg.value);
 
         // create and store validator info
         _createValidatorInfo(validator, params, stakeCreditAddress);
@@ -229,7 +225,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
 
         // initial stake
         // TODO: fix
-        // StakeCredit(payable(stakeCreditAddress)).delegate{ value: amount }(validator);
+        StakeCredit(payable(stakeCreditAddress)).delegate{ value: amount }(validator);
 
         emit ValidatorRegistered(validator, params.initialOperator, params.consensusPublicKey, params.moniker);
         emit StakeCreditDeployed(validator, stakeCreditAddress);
@@ -618,7 +614,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             // update voting power
             uint256 currentStake = _getValidatorStake(validator);
             // TODO(jason): need further discussion
-            currentStake = 1;
+            // 或许要先都设置成20000之类的？
+            // currentStake = 1; // 移除硬编码，使用实际的质押金额
 
             if (currentStake >= minStakeRequired) {
                 info.votingPower = currentStake;
@@ -641,16 +638,14 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         validatorSetData.totalVotingPower = newTotalVotingPower;
     }
 
-    /**
-     * @dev 部署StakeCredit合约
-     */
-    function _deployStakeCredit(
+    function _deployStakeCreditWithValue(
         address validator,
         string memory moniker,
-        address beneficiary
+        address beneficiary,
+        uint256 value
     ) internal returns (address) {
         address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
-        IStakeCredit(creditProxy).initialize{ value: msg.value }(validator, moniker, beneficiary);
+        IStakeCredit(creditProxy).initialize{ value: value }(validator, moniker, beneficiary);
         emit StakeCreditDeployed(validator, creditProxy);
 
         return creditProxy;
@@ -798,6 +793,19 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
+    function isCurrentEpochValidator(
+        bytes calldata validator
+    ) public view override returns (bool) {
+        for (uint256 i = 0; i < activeValidators.length(); i++) {
+            address validatorAddress = activeValidators.at(i);
+            if (keccak256(validatorInfos[validatorAddress].aptosAddress) == keccak256(validator)) {
+                return validatorInfos[validatorAddress].status == ValidatorStatus.ACTIVE;
+            }
+        }
+        return false;
+    }
+
+    /// @inheritdoc IValidatorManager
     function getValidatorStatus(
         address validator
     ) external view override returns (ValidatorStatus) {
@@ -819,6 +827,19 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             revert ValidatorNotActive(validator);
         }
         return uint64(activeValidatorIndex[validator]);
+    }
+
+    /// @inheritdoc IValidatorManager
+    function getValidatorByProposer(
+        bytes calldata proposer
+    ) external view override returns (address validatorAddress, uint64 validatorIndex) {
+        for (uint256 i = 0; i < activeValidators.length(); i++) {
+            address validator = activeValidators.at(i);
+            if (keccak256(validatorInfos[validator].aptosAddress) == keccak256(proposer)) {
+                return (validator, uint64(activeValidatorIndex[validator]));
+            }
+        }
+        revert ValidatorNotActive(address(0));
     }
 
     /**

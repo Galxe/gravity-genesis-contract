@@ -17,7 +17,7 @@ interface IStakeCredit {
     error InsufficientBalance();
     error TransferFailed();
     error NoWithdrawableAmount();
-    error StakeCredit__WrongInitContext();
+    error StakeCredit__WrongInitContext(uint256 initialAmount, uint256 lockAmount, address validator);
     error InsufficientActiveStake();
     error StakeCredit__UnauthorizedCaller();
     error StakeCredit__RequestExists();

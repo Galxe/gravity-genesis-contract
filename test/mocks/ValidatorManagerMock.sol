@@ -39,11 +39,32 @@ contract ValidatorManagerMock {
         return isCurrentEpochValidatorMap[validator];
     }
 
+    function isCurrentEpochValidator(
+        bytes calldata /* validator */
+    ) external pure returns (bool) {
+        // Mock implementation - always return true for testing
+        return true;
+    }
+
     function getValidatorIndex(
         address validator
     ) external view returns (uint64) {
         require(isCurrentEpochValidatorMap[validator], "ValidatorNotActive");
         return validatorIndexMap[validator];
+    }
+
+    function getValidatorByProposer(
+        bytes calldata proposer
+    ) external view returns (address validatorAddress, uint64 validatorIndex) {
+        // Convert bytes to address (take last 20 bytes)
+        require(proposer.length >= 20, "Invalid proposer length");
+        address addr;
+        assembly {
+            // Load from offset+12 to skip the first 12 bytes of padding, then shift to get address
+            addr := shr(96, calldataload(add(proposer.offset, 12)))
+        }
+        require(isCurrentEpochValidatorMap[addr], "ValidatorNotActive");
+        return (addr, validatorIndexMap[addr]);
     }
 
     function setIsValidatorExists(address validator, bool exists) external {

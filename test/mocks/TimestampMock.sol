@@ -11,6 +11,14 @@ contract TimestampMock {
     UpdateCall public lastCall;
     uint256 public totalCalls;
     uint64 public mockCurrentTime; // Mock current time in seconds
+    bool public initialized;
+
+    function initialize() external {
+        // Allow GENESIS_ADDR, SYSTEM_CALLER, and any contract to call initialize
+        // This is for testing purposes - in real deployment, only GENESIS_ADDR should be allowed
+        initialized = true;
+        mockCurrentTime = 1; // Set initial time
+    }
 
     function updateGlobalTime(address proposer, uint64 timestampMicros) external {
         lastCall.proposer = proposer;

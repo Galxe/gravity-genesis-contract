@@ -108,9 +108,9 @@ contract System {
 
     modifier onlySystemJWKCaller() {
         require(
-            msg.sender == address(this) ||  // ValidatorManager itself
-            msg.sender == JWK_MANAGER_ADDR ||  // JWKManager
-            msg.sender == SYSTEM_CALLER,
+            msg.sender == address(this) // ValidatorManager itself
+                || msg.sender == JWK_MANAGER_ADDR // JWKManager
+                || msg.sender == SYSTEM_CALLER,
             "Unauthorized caller"
         );
         _;

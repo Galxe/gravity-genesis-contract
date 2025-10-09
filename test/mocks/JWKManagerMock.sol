@@ -7,11 +7,11 @@ import "@src/interfaces/IDelegation.sol";
 
 contract JWKManagerMock {
     bool public initialized;
-    
+
     // Mock data for testing
     mapping(address => bool) public validatorExistsMap;
     mapping(address => address) public validatorStakeCreditMap;
-    
+
     // Event tracking
     bool public stakeRegisterValidatorEventEmitted;
     bool public stakeEventEmitted;
@@ -19,7 +19,7 @@ contract JWKManagerMock {
     uint256 public lastStakeAmount;
     bytes public lastValidatorParams;
     address public lastTargetValidator;
-    
+
     // Mock functions for ValidatorManager
     function registerValidator(
         IValidatorManager.ValidatorRegistrationParams calldata params
@@ -31,9 +31,11 @@ contract JWKManagerMock {
         lastStakeAmount = msg.value;
         lastValidatorParams = abi.encode(params);
     }
-    
+
     // Mock functions for Delegation
-    function delegate(address validator) external payable {
+    function delegate(
+        address validator
+    ) external payable {
         // Mock implementation - just track the call
         stakeEventEmitted = true;
         // For testing, we'll use a default user address since delegation doesn't have user info in the call
@@ -41,20 +43,20 @@ contract JWKManagerMock {
         lastStakeAmount = msg.value;
         lastTargetValidator = validator;
     }
-    
+
     // Mock setup functions
     function initialize() external {
         initialized = true;
     }
-    
+
     function setValidatorExists(address validator, bool exists) external {
         validatorExistsMap[validator] = exists;
     }
-    
+
     function setValidatorStakeCredit(address validator, address stakeCredit) external {
         validatorStakeCreditMap[validator] = stakeCredit;
     }
-    
+
     // Reset function for testing
     function reset() external {
         stakeRegisterValidatorEventEmitted = false;
@@ -64,13 +66,17 @@ contract JWKManagerMock {
         lastValidatorParams = "";
         lastTargetValidator = address(0);
     }
-    
+
     // Mock view functions
-    function isValidatorExists(address validator) external view returns (bool) {
+    function isValidatorExists(
+        address validator
+    ) external view returns (bool) {
         return validatorExistsMap[validator];
     }
-    
-    function getValidatorStakeCredit(address validator) external view returns (address) {
+
+    function getValidatorStakeCredit(
+        address validator
+    ) external view returns (address) {
         return validatorStakeCreditMap[validator];
     }
 }

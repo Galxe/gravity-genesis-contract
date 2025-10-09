@@ -16,6 +16,7 @@ import "@test/mocks/TimelockMock.sol";
 import "@test/mocks/GravityGovernorMock.sol";
 import "@test/mocks/JWKManagerMock.sol";
 import "@test/mocks/KeylessAccountMock.sol";
+import "@test/mocks/TimestampMock.sol";
 
 contract GenesisTest is Test, TestConstants {
     Genesis public genesis;
@@ -81,6 +82,7 @@ contract GenesisTest is Test, TestConstants {
         vm.etch(GOVERNOR_ADDR, address(new GravityGovernorMock()).code);
         vm.etch(JWK_MANAGER_ADDR, address(new JWKManagerMock()).code);
         vm.etch(KEYLESS_ACCOUNT_ADDR, address(new KeylessAccountMock()).code);
+        vm.etch(TIMESTAMP_ADDR, address(new TimestampMock()).code);
     }
 
     // ============ SUCCESSFUL GENESIS TESTS ============

@@ -12,7 +12,7 @@ use alloy_chains::NamedChain;
 use revm::{
     InMemoryDB,
     db::{BundleState, PlainAccount},
-    primitives::{AccountInfo, Env, SpecId},
+    primitives::{AccountInfo, Env, SpecId, U256},
 };
 use revm_primitives::{Bytecode, Bytes, TxEnv, hex};
 use std::{collections::HashMap, fs::File, io::BufWriter};
@@ -34,18 +34,34 @@ fn deploy_bsc_style(byte_code_dir: &str) -> InMemoryDB {
         // and extract the returned bytecode
         let runtime_bytecode = extract_runtime_bytecode(&bytecode_hex);
 
+        // Set large balance for JWK Manager and Validator Manager
+        let balance = if contract_name == "JwkManager" || contract_name == "ValidatorManager" || contract_name == "Genesis" {
+            // Set 1 million ETH balance (1e6 * 1e18 wei)
+            U256::from(1_000_000) * U256::from(10).pow(U256::from(18))
+        } else {
+            U256::ZERO
+        };
+
         db.insert_account_info(
             target_address,
             AccountInfo {
                 code: Some(Bytecode::new_raw(Bytes::from(runtime_bytecode))),
+                balance,
                 ..AccountInfo::default()
             },
         );
 
-        info!(
-            "Deployed {} runtime bytecode to {:?}",
-            contract_name, target_address
-        );
+        if balance > U256::ZERO {
+            info!(
+                "Deployed {} runtime bytecode to {:?} with balance {} ETH",
+                contract_name, target_address, balance / U256::from(10).pow(U256::from(18))
+            );
+        } else {
+            info!(
+                "Deployed {} runtime bytecode to {:?}",
+                contract_name, target_address
+            );
+        }
     }
 
     db

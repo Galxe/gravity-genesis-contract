@@ -23,7 +23,7 @@ interface IBlock {
     /**
      * @dev Error thrown when an invalid proposer is provided
      */
-    error InvalidProposer(address proposer);
+    error InvalidProposer(bytes proposer);
 
     /**
      * @dev Initialize the contract during genesis
@@ -32,12 +32,12 @@ interface IBlock {
 
     /**
      * @dev Called at the beginning of each block to execute necessary system logic
-     * @param proposer Current block proposer address, SYSTEM_CALLER indicates VM reserved address
+     * @param proposer Current block proposer (bytes format), 32 bytes of zeros indicates VM reserved address
      * @param failedProposerIndices List of failed proposer indices
      * @param timestampMicros Current block timestamp in microseconds
      */
     function blockPrologue(
-        address proposer,
+        bytes calldata proposer,
         uint64[] calldata failedProposerIndices,
         uint256 timestampMicros
     ) external;

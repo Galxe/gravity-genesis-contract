@@ -30,6 +30,7 @@ contract StakeConfigTest is Test, TestConstants {
 
     // ============ INITIALIZATION TESTS ============
 
+    // TODO: failed because stakeconfig init set minValidatorStake to 0
     function test_initialize_shouldSetCorrectDefaults() public view {
         // Assert staking parameters
         assertEq(stakeConfig.minValidatorStake(), 1000 ether);
@@ -128,6 +129,7 @@ contract StakeConfigTest is Test, TestConstants {
         assertEq(stakeConfig.maximumStake(), newValue);
     }
 
+    // TODO: failed because stakeconfig init set minValidatorStake to 0
     function test_updateParam_maximumStake_shouldRevertIfBelowMinimum() public {
         // Arrange
         uint256 newValue = 500 ether; // Below minValidatorStake (1000)
@@ -277,6 +279,7 @@ contract StakeConfigTest is Test, TestConstants {
 
     // ============ VIEW FUNCTION TESTS ============
 
+    // TODO: failed because stakeconfig init set minValidatorStake to 0
     function test_getRequiredStake_shouldReturnCorrectValues() public view {
         // Act
         (uint256 minimum, uint256 maximum) = stakeConfig.getRequiredStake();
@@ -295,6 +298,7 @@ contract StakeConfigTest is Test, TestConstants {
         assertEq(denominator, 10000);
     }
 
+    // TODO: failed because stakeconfig init set minValidatorStake to 0
     function test_getAllConfigParams_shouldReturnAllValues() public view {
         // Act
         IStakeConfig.ConfigParams memory params = stakeConfig.getAllConfigParams();
@@ -316,6 +320,7 @@ contract StakeConfigTest is Test, TestConstants {
         assertEq(params.lockAmount, 10000 ether);
     }
 
+    // TODO: failed because stakeconfig init set minValidatorStake to 0
     function test_isValidStakeAmount_shouldReturnCorrectResults() public view {
         // Assert valid amounts
         assertTrue(stakeConfig.isValidStakeAmount(1000 ether)); // Min

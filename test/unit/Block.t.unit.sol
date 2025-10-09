@@ -17,6 +17,18 @@ contract BlockTest is Test, TestConstants {
     TimestampMock timestampContract;
     EpochManagerMock epochManager;
 
+    // Helper function to convert address to bytes (32 bytes format for Aptos address)
+    function addressToBytes32(
+        address addr
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes12(0), bytes20(addr));
+    }
+
+    // Helper function to get VM reserved proposer (32 bytes of zeros)
+    function getVmReservedProposer() internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes32(0));
+    }
+
     function setUp() public {
         // Deploy mock contracts
         validatorManager = new ValidatorManagerMock();
@@ -77,7 +89,7 @@ contract BlockTest is Test, TestConstants {
         failedIndices[1] = 3;
 
         // Act
-        blockContract.blockPrologue(VALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }
@@ -90,7 +102,7 @@ contract BlockTest is Test, TestConstants {
         uint256 timestampMicros = 2000000;
 
         // Act
-        blockContract.blockPrologue(SYSTEM_CALLER, failedIndices, timestampMicros);
+        blockContract.blockPrologue(getVmReservedProposer(), failedIndices, timestampMicros);
 
         vm.stopPrank();
     }
@@ -102,7 +114,7 @@ contract BlockTest is Test, TestConstants {
 
         // Act & Assert
         vm.expectRevert(); // Should revert with InvalidProposer
-        blockContract.blockPrologue(INVALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(INVALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }
@@ -112,7 +124,7 @@ contract BlockTest is Test, TestConstants {
         vm.startPrank(NOT_SYSTEM_CALLER);
         uint64[] memory failedIndices = new uint64[](0);
         vm.expectRevert(); // Should revert with onlySystemCaller modifier
-        blockContract.blockPrologue(VALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
         vm.stopPrank();
     }
 
@@ -128,7 +140,7 @@ contract BlockTest is Test, TestConstants {
         vm.expectCall(EPOCH_MANAGER_ADDR, abi.encodeWithSignature("triggerEpochTransition()"));
 
         // Act
-        blockContract.blockPrologue(VALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }
@@ -142,7 +154,7 @@ contract BlockTest is Test, TestConstants {
         EpochManagerMock(EPOCH_MANAGER_ADDR).setCanTriggerEpochTransition(false);
 
         // Act
-        blockContract.blockPrologue(VALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }
@@ -153,7 +165,7 @@ contract BlockTest is Test, TestConstants {
         uint64[] memory emptyFailedIndices = new uint64[](0);
 
         // Act
-        blockContract.blockPrologue(VALID_PROPOSER, emptyFailedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), emptyFailedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }
@@ -167,7 +179,7 @@ contract BlockTest is Test, TestConstants {
         }
 
         // Act
-        blockContract.blockPrologue(VALID_PROPOSER, failedIndices, DEFAULT_TIMESTAMP_MICROS);
+        blockContract.blockPrologue(addressToBytes32(VALID_PROPOSER), failedIndices, DEFAULT_TIMESTAMP_MICROS);
 
         vm.stopPrank();
     }

@@ -70,17 +70,9 @@ interface IValidatorManager is IReconfigurableModule {
         uint256 totalJoiningPower; // Total voting power waiting to join in the next epoch
     }
 
-    event StakeRegisterValidatorEvent(
-            address user,
-            uint256 amount,
-            bytes ValidatorRegistrationParams
-        );
-    
-    event StakeEvent(
-            address user,
-            uint256 amount,
-            address targetValidator
-        );
+    event StakeRegisterValidatorEvent(address user, uint256 amount, bytes ValidatorRegistrationParams);
+
+    event StakeEvent(address user, uint256 amount, address targetValidator);
 
     /// Validator registration events
     event ValidatorRegistered(
@@ -170,12 +162,6 @@ interface IValidatorManager is IReconfigurableModule {
     function registerValidator(
         ValidatorRegistrationParams calldata params
     ) external payable;
-
-    function registerValidatorInternal(
-        address validator,
-        uint256 amount,
-        ValidatorRegistrationParams calldata params
-    ) external;
 
     /**
      * @dev Join validator set
@@ -279,6 +265,13 @@ interface IValidatorManager is IReconfigurableModule {
     ) external view returns (bool);
 
     /**
+     * @dev Check if validator is current active validator (bytes version)
+     */
+    function isCurrentEpochValidator(
+        bytes calldata validator
+    ) external view returns (bool);
+
+    /**
      * @dev Get total voting power
      */
     function getTotalVotingPower() external view returns (uint256);
@@ -331,6 +324,16 @@ interface IValidatorManager is IReconfigurableModule {
     function getValidatorIndex(
         address validator
     ) external view returns (uint64);
+
+    /**
+     * @dev Get validator address and index by proposer (Aptos address)
+     * @param proposer Proposer bytes (Aptos address)
+     * @return validatorAddress The validator address
+     * @return validatorIndex The validator index
+     */
+    function getValidatorByProposer(
+        bytes calldata proposer
+    ) external view returns (address validatorAddress, uint64 validatorIndex);
 
     /**
      * @dev Block producer deposits block rewards
