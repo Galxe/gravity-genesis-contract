@@ -1,7 +1,7 @@
 {
   "providers": [
     {
-      "name": "gravity://31337/event?address=0x5FbDB2315678afecb367f032d93F642f64180aa3&topic0=0x96d625dbe2bd7f604bbc20261e604894b8d1eb533d114ed5bd209b081943f349&fromBlock=100",
+      "name": "gravity://31337/event?address=0x5FbDB2315678afecb367f032d93F642f64180aa3&topic0=0x503456520561683b10fa81bb1b54faf6c26d29e8d59ba37f8ee17b4d5c078c15&fromBlock=100",
       "configUrl": "http://localhost:8545",
       "active": true
     }
