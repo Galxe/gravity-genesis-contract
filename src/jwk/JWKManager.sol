@@ -647,14 +647,10 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
             if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
-                // StakeRegisterValidatorEvent - 注册验证者
-                _handleValidatorStakeEvent(crossChainParam);
             } else if (keccak256(crossChainParam.id) == keccak256(bytes("2"))) {
                 // StakeEvent - 普通质押
                 _handleDelegationStakeEvent(crossChainParam);
             } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) {
-                // StakeEvent - 离开验证者集合
-                // _handleLeaveValidatorSetEvent(jwk, providerJWKs.issuer);
             } else if (keccak256(crossChainParam.id) == keccak256(bytes("4"))) {
                 // StakeEvent - 加入验证者集合
                 // _handleUndelegationEvent(jwk, providerJWKs.issuer);
