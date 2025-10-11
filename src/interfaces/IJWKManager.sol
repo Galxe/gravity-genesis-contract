@@ -85,12 +85,10 @@ interface IJWKManager is IParamSubscriber {
     }
 
     struct CrossChainParams {
-        // 1 => StakeRegisterValidatorEvent
         // 2 => DelegationEvent
-        // 3 => LeaveValidatorSetEvent
         // 4 => UndelegationEvent
         bytes id;
-        IValidatorManager.ValidatorRegistrationParams validatorParams;
+        address sender;
         address targetValidator;
         uint256 shares;
         uint256 blockNumber;
