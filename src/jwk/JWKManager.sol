@@ -16,13 +16,7 @@ import "@src/interfaces/IDelegation.sol";
  * @dev Manages JSON Web Keys (JWKs), supporting OIDC providers and federated JWKs
  * Based on Aptos JWK system design, adapted for Gravity chain architecture
  */
-contract JWKManager is
-    System,
-    Protectable,
-    IParamSubscriber,
-    IJWKManager,
-    Initializable
-{
+contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initializable {
     using Strings for string;
 
     // ======== Constants ========
@@ -56,7 +50,9 @@ contract JWKManager is
     uint256 public maxExtraFieldBytes;
     uint256 public maxJwtHeaderB64Bytes;
 
-    modifier validIssuer(string memory issuer) {
+    modifier validIssuer(
+        string memory issuer
+    ) {
         if (bytes(issuer).length == 0) revert InvalidOIDCProvider();
         _;
     }
@@ -84,10 +80,7 @@ contract JWKManager is
     // ======== Parameter Management ========
 
     /// @inheritdoc IParamSubscriber
-    function updateParam(
-        string calldata key,
-        bytes calldata value
-    ) external override onlyGov {
+    function updateParam(string calldata key, bytes calldata value) external override onlyGov {
         if (Strings.equal(key, "maxSignaturesPerTxn")) {
             uint256 newValue = abi.decode(value, (uint256));
             uint256 oldValue = maxSignaturesPerTxn;
@@ -128,21 +121,13 @@ contract JWKManager is
     // ======== OIDC Provider Management ========
 
     /// @inheritdoc IJWKManager
-    function upsertOIDCProvider(
-        string calldata name,
-        string calldata configUrl
-    ) external onlyGov validIssuer(name) {
+    function upsertOIDCProvider(string calldata name, string calldata configUrl) external onlyGov validIssuer(name) {
         uint256 index = providerIndex[name];
 
         if (index == 0) {
             // Add new provider
             supportedProviders.push(
-                OIDCProvider({
-                    name: name,
-                    configUrl: configUrl,
-                    active: true,
-                    onchain_block_number: 0
-                })
+                OIDCProvider({ name: name, configUrl: configUrl, active: true, onchain_block_number: 0 })
             );
             providerIndex[name] = supportedProviders.length;
             emit OIDCProviderAdded(name, configUrl);
@@ -156,7 +141,9 @@ contract JWKManager is
     }
 
     /// @inheritdoc IJWKManager
-    function removeOIDCProvider(string calldata name) external onlyGov {
+    function removeOIDCProvider(
+        string calldata name
+    ) external onlyGov {
         uint256 index = providerIndex[name];
         if (index == 0) revert IssuerNotFound();
 
@@ -182,10 +169,7 @@ contract JWKManager is
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
 
-        emit ObservedJWKsUpdated(
-            IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch(),
-            observedJWKs.entries
-        );
+        emit ObservedJWKsUpdated(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch(), observedJWKs.entries);
     }
 
     /// @inheritdoc IJWKManager
@@ -200,7 +184,9 @@ contract JWKManager is
     // ======== Patch Management ========
 
     /// @inheritdoc IJWKManager
-    function setPatches(Patch[] calldata newPatches) external onlyGov {
+    function setPatches(
+        Patch[] calldata newPatches
+    ) external onlyGov {
         delete patches;
         for (uint256 i = 0; i < newPatches.length; i++) {
             patches.push(newPatches[i]);
@@ -211,7 +197,9 @@ contract JWKManager is
     }
 
     /// @inheritdoc IJWKManager
-    function addPatch(Patch calldata patch) external onlyGov {
+    function addPatch(
+        Patch calldata patch
+    ) external onlyGov {
         patches.push(patch);
         _regeneratePatchedJWKs();
         emit PatchesUpdated(patches.length);
@@ -228,11 +216,8 @@ contract JWKManager is
         string[] calldata nArray
     ) external validIssuer(issuer) {
         if (kidArray.length == 0) revert InvalidJWKFormat();
-        if (
-            kidArray.length != algArray.length ||
-            kidArray.length != eArray.length ||
-            kidArray.length != nArray.length
-        ) {
+        if (kidArray.length != algArray.length || kidArray.length != eArray.length || kidArray.length != nArray.length)
+        {
             revert InvalidJWKFormat();
         }
 
@@ -251,13 +236,8 @@ contract JWKManager is
 
         // Add all JWKs
         for (uint256 i = 0; i < kidArray.length; i++) {
-            RSA_JWK memory rsaJWK = RSA_JWK({
-                kid: kidArray[i],
-                kty: "RSA",
-                alg: algArray[i],
-                e: eArray[i],
-                n: nArray[i]
-            });
+            RSA_JWK memory rsaJWK =
+                RSA_JWK({ kid: kidArray[i], kty: "RSA", alg: algArray[i], e: eArray[i], n: nArray[i] });
 
             newProviderJWKs.jwks[i] = JWK({
                 variant: 0, // RSA_JWK
@@ -278,7 +258,9 @@ contract JWKManager is
     }
 
     /// @inheritdoc IJWKManager
-    function patchFederatedJWKs(Patch[] calldata patchArray) external {
+    function patchFederatedJWKs(
+        Patch[] calldata patchArray
+    ) external {
         AllProvidersJWKs storage dappJWKs = federatedJWKs[msg.sender];
 
         for (uint256 i = 0; i < patchArray.length; i++) {
@@ -295,11 +277,7 @@ contract JWKManager is
     }
 
     /// @inheritdoc IJWKManager
-    function getActiveProviders()
-        external
-        view
-        returns (OIDCProvider[] memory)
-    {
+    function getActiveProviders() external view returns (OIDCProvider[] memory) {
         uint256 activeCount = 0;
         for (uint256 i = 0; i < supportedProviders.length; i++) {
             if (supportedProviders[i].active) {
@@ -321,10 +299,7 @@ contract JWKManager is
     // ======== Query Functions ========
 
     /// @inheritdoc IJWKManager
-    function getPatchedJWK(
-        string calldata issuer,
-        bytes calldata jwkId
-    ) external view returns (JWK memory) {
+    function getPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (JWK memory) {
         return _getJWKByIssuer(patchedJWKs, issuer, jwkId);
     }
 
@@ -336,7 +311,7 @@ contract JWKManager is
         try this.getPatchedJWK(issuer, jwkId) returns (JWK memory result) {
             return (true, result);
         } catch {
-            return (false, JWK({variant: 0, data: ""}));
+            return (false, JWK({ variant: 0, data: "" }));
         }
     }
 
@@ -391,19 +366,14 @@ contract JWKManager is
     /**
      * @dev Copies AllProvidersJWKs from source to destination
      */
-    function _copyAllProvidersJWKs(
-        AllProvidersJWKs storage dest,
-        AllProvidersJWKs storage src
-    ) internal {
+    function _copyAllProvidersJWKs(AllProvidersJWKs storage dest, AllProvidersJWKs storage src) internal {
         // Clear destination
         delete dest.entries;
 
         // Copy all entries
         for (uint256 i = 0; i < src.entries.length; i++) {
             dest.entries.push();
-            ProviderJWKs storage destEntry = dest.entries[
-                dest.entries.length - 1
-            ];
+            ProviderJWKs storage destEntry = dest.entries[dest.entries.length - 1];
             ProviderJWKs storage srcEntry = src.entries[i];
 
             // Copy fields individually instead of direct struct assignment
@@ -420,10 +390,7 @@ contract JWKManager is
     /**
      * @dev Applies a patch to the JWK set
      */
-    function _applyPatch(
-        AllProvidersJWKs storage jwks,
-        Patch memory patch
-    ) internal {
+    function _applyPatch(AllProvidersJWKs storage jwks, Patch memory patch) internal {
         if (patch.patchType == PatchType.RemoveAll) {
             delete jwks.entries;
         } else if (patch.patchType == PatchType.RemoveIssuer) {
@@ -440,18 +407,12 @@ contract JWKManager is
     /**
      * @dev Inserts or updates ProviderJWKs
      */
-    function _upsertProviderJWKs(
-        AllProvidersJWKs storage jwks,
-        ProviderJWKs memory providerJWKs
-    ) internal {
+    function _upsertProviderJWKs(AllProvidersJWKs storage jwks, ProviderJWKs memory providerJWKs) internal {
         // Find if already exists
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, providerJWKs.issuer)) {
                 if (jwks.entries[i].version + 1 != providerJWKs.version) {
-                    revert InvalidJWKVersion(
-                        jwks.entries[i].version + 1,
-                        providerJWKs.version
-                    );
+                    revert InvalidJWKVersion(jwks.entries[i].version + 1, providerJWKs.version);
                 }
                 // Update existing entry - avoid direct assignment, copy fields individually
                 jwks.entries[i].issuer = providerJWKs.issuer;
@@ -469,9 +430,7 @@ contract JWKManager is
         // Insert new entry (maintain sorting by issuer)
         uint256 insertIndex = 0;
         for (uint256 i = 0; i < jwks.entries.length; i++) {
-            if (
-                _compareStrings(providerJWKs.issuer, jwks.entries[i].issuer) < 0
-            ) {
+            if (_compareStrings(providerJWKs.issuer, jwks.entries[i].issuer) < 0) {
                 insertIndex = i;
                 break;
             }
@@ -502,10 +461,7 @@ contract JWKManager is
     /**
      * @dev Removes an issuer from the JWK set
      */
-    function _removeIssuer(
-        AllProvidersJWKs storage jwks,
-        string memory issuer
-    ) internal {
+    function _removeIssuer(AllProvidersJWKs storage jwks, string memory issuer) internal {
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, issuer)) {
                 // Remove this entry - copy fields individually instead of direct assignment
@@ -514,11 +470,7 @@ contract JWKManager is
                     jwks.entries[j].version = jwks.entries[j + 1].version;
 
                     delete jwks.entries[j].jwks;
-                    for (
-                        uint256 k = 0;
-                        k < jwks.entries[j + 1].jwks.length;
-                        k++
-                    ) {
+                    for (uint256 k = 0; k < jwks.entries[j + 1].jwks.length; k++) {
                         jwks.entries[j].jwks.push(jwks.entries[j + 1].jwks[k]);
                     }
                 }
@@ -531,11 +483,7 @@ contract JWKManager is
     /**
      * @dev Inserts or updates a JWK
      */
-    function _upsertJWK(
-        AllProvidersJWKs storage jwks,
-        string memory issuer,
-        JWK memory jwk
-    ) internal {
+    function _upsertJWK(AllProvidersJWKs storage jwks, string memory issuer, JWK memory jwk) internal {
         // Find or create ProviderJWKs
         int256 _providerIndex = -1;
         for (uint256 i = 0; i < jwks.entries.length; i++) {
@@ -547,26 +495,18 @@ contract JWKManager is
 
         if (_providerIndex == -1) {
             // Create new ProviderJWKs
-            ProviderJWKs memory newProvider = ProviderJWKs({
-                issuer: issuer,
-                version: 1,
-                jwks: new JWK[](1)
-            });
+            ProviderJWKs memory newProvider = ProviderJWKs({ issuer: issuer, version: 1, jwks: new JWK[](1) });
             newProvider.jwks[0] = jwk;
             _upsertProviderJWKs(jwks, newProvider);
         } else {
             // Update JWK in existing ProviderJWKs
-            ProviderJWKs storage provider = jwks.entries[
-                uint256(_providerIndex)
-            ];
+            ProviderJWKs storage provider = jwks.entries[uint256(_providerIndex)];
             bytes memory jwkId = _getJWKId(jwk);
 
             // Find if JWK already exists
             bool found = false;
             for (uint256 i = 0; i < provider.jwks.length; i++) {
-                if (
-                    keccak256(_getJWKId(provider.jwks[i])) == keccak256(jwkId)
-                ) {
+                if (keccak256(_getJWKId(provider.jwks[i])) == keccak256(jwkId)) {
                     provider.jwks[i] = jwk;
                     found = true;
                     break;
@@ -605,19 +545,12 @@ contract JWKManager is
     /**
      * @dev Removes a specific JWK
      */
-    function _removeJWK(
-        AllProvidersJWKs storage jwks,
-        string memory issuer,
-        bytes memory jwkId
-    ) internal {
+    function _removeJWK(AllProvidersJWKs storage jwks, string memory issuer, bytes memory jwkId) internal {
         for (uint256 i = 0; i < jwks.entries.length; i++) {
             if (Strings.equal(jwks.entries[i].issuer, issuer)) {
                 ProviderJWKs storage provider = jwks.entries[i];
                 for (uint256 j = 0; j < provider.jwks.length; j++) {
-                    if (
-                        keccak256(_getJWKId(provider.jwks[j])) ==
-                        keccak256(jwkId)
-                    ) {
+                    if (keccak256(_getJWKId(provider.jwks[j])) == keccak256(jwkId)) {
                         // Remove this JWK
                         for (uint256 k = j; k < provider.jwks.length - 1; k++) {
                             provider.jwks[k] = provider.jwks[k + 1];
@@ -643,10 +576,7 @@ contract JWKManager is
             if (Strings.equal(jwks.entries[i].issuer, issuer)) {
                 ProviderJWKs storage provider = jwks.entries[i];
                 for (uint256 j = 0; j < provider.jwks.length; j++) {
-                    if (
-                        keccak256(_getJWKId(provider.jwks[j])) ==
-                        keccak256(jwkId)
-                    ) {
+                    if (keccak256(_getJWKId(provider.jwks[j])) == keccak256(jwkId)) {
                         return provider.jwks[j];
                     }
                 }
@@ -659,17 +589,16 @@ contract JWKManager is
     /**
      * @dev Gets the ID of a JWK
      */
-    function _getJWKId(JWK memory jwk) internal pure returns (bytes memory) {
+    function _getJWKId(
+        JWK memory jwk
+    ) internal pure returns (bytes memory) {
         if (jwk.variant == 0) {
             // RSA_JWK
             RSA_JWK memory rsaJWK = abi.decode(jwk.data, (RSA_JWK));
             return bytes(rsaJWK.kid);
         } else if (jwk.variant == 1) {
             // UnsupportedJWK
-            UnsupportedJWK memory unsupportedJWK = abi.decode(
-                jwk.data,
-                (UnsupportedJWK)
-            );
+            UnsupportedJWK memory unsupportedJWK = abi.decode(jwk.data, (UnsupportedJWK));
             return unsupportedJWK.id;
         } else {
             revert UnknownJWKVariant();
@@ -679,16 +608,11 @@ contract JWKManager is
     /**
      * @dev String comparison function (returns -1, 0, 1)
      */
-    function _compareStrings(
-        string memory a,
-        string memory b
-    ) internal pure returns (int256) {
+    function _compareStrings(string memory a, string memory b) internal pure returns (int256) {
         bytes memory aBytes = bytes(a);
         bytes memory bBytes = bytes(b);
 
-        uint256 minLength = aBytes.length < bBytes.length
-            ? aBytes.length
-            : bBytes.length;
+        uint256 minLength = aBytes.length < bBytes.length ? aBytes.length : bBytes.length;
 
         for (uint256 i = 0; i < minLength; i++) {
             if (uint8(aBytes[i]) < uint8(bBytes[i])) {
@@ -709,10 +633,7 @@ contract JWKManager is
 
     // ======== Stake Event Processing ========
 
-    function _updateOnchainBlockNumber(
-        string memory issuer,
-        uint256 blockNumber
-    ) internal {
+    function _updateOnchainBlockNumber(string memory issuer, uint256 blockNumber) internal {
         uint256 index = providerIndex[issuer];
         if (index == 0) {
             revert IssuerNotFound();
@@ -725,16 +646,12 @@ contract JWKManager is
     ) internal {
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
-            if (
-                keccak256(crossChainParam.id) == keccak256(bytes("1"))
-            ) {} else if (
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) { } else if (
                 keccak256(crossChainParam.id) == keccak256(bytes("2"))
             ) {
                 // StakeEvent - 普通质押
                 _handleDelegationStakeEvent(crossChainParam);
-            } else if (
-                keccak256(crossChainParam.id) == keccak256(bytes("3"))
-            ) {} else if (
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) { } else if (
                 keccak256(crossChainParam.id) == keccak256(bytes("4"))
             ) {
                 // StakeEvent - 加入验证者集合
@@ -747,25 +664,17 @@ contract JWKManager is
     function _handleValidatorStakeEvent(
         CrossChainParams calldata crossChainParam
     ) internal {
-        _updateOnchainBlockNumber(
-            crossChainParam.issuer,
-            crossChainParam.blockNumber
-        );
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
     }
 
     function _handleDelegationStakeEvent(
         CrossChainParams calldata crossChainParam
     ) internal {
         // 从JWK data中解析StakeEvent参数
-        _updateOnchainBlockNumber(
-            crossChainParam.issuer,
-            crossChainParam.blockNumber
-        );
+        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
         // 调用IDelegation.delegate
         // TODO: unify shares and amount
-        IDelegation(DELEGATION_ADDR).delegate{value: crossChainParam.shares}(
-            crossChainParam.targetValidator
-        );
+        IDelegation(DELEGATION_ADDR).delegate{ value: crossChainParam.shares }(crossChainParam.targetValidator);
 
         // 发出事件
         // emit IValidatorManager.StakeEvent(crossChainParam.user, crossChainParam.shares, crossChainParam.targetValidator);
