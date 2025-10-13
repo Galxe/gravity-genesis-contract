@@ -19,6 +19,10 @@ import "@src/interfaces/IDelegation.sol";
 contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initializable {
     using Strings for string;
 
+    // ======== Errors ========
+    error InsufficientContractBalance();
+    error TransferFailed();
+
     // ======== Constants ========
     uint256 public constant MAX_FEDERATED_JWKS_SIZE_BYTES = 2 * 1024; // 2 KiB
     uint256 public constant MAX_PROVIDERS_PER_REQUEST = 50;
@@ -164,10 +168,10 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             _upsertProviderJWKs(observedJWKs, providerJWKsArray[i]);
         }
 
-        _handleCrossChainEvent(crossChainParamsArray);
-
         // Regenerate patchedJWKs
         _regeneratePatchedJWKs();
+
+        _handleCrossChainEvent(crossChainParamsArray);
 
         emit ObservedJWKsUpdated(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch(), observedJWKs.entries);
     }
@@ -646,37 +650,41 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     ) internal {
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
-            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) { } else if (
-                keccak256(crossChainParam.id) == keccak256(bytes("2"))
-            ) {
-                // StakeEvent - 普通质押
-                _handleDelegationStakeEvent(crossChainParam);
-            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) { } else if (
-                keccak256(crossChainParam.id) == keccak256(bytes("4"))
-            ) {
-                // StakeEvent - 加入验证者集合
-                // _handleUndelegationEvent(jwk, providerJWKs.issuer);
+            // Only support CrossChainDepositEvent (id="1")
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) { 
+                _handleCrossChainDepositEvent(crossChainParam);
             }
         }
     }
 
-    // Deprecated
-    function _handleValidatorStakeEvent(
+    function _handleCrossChainDepositEvent(
         CrossChainParams calldata crossChainParam
     ) internal {
         _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
-    }
-
-    function _handleDelegationStakeEvent(
-        CrossChainParams calldata crossChainParam
-    ) internal {
-        // 从JWK data中解析StakeEvent参数
-        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
-        // 调用IDelegation.delegate
-        // TODO: unify shares and amount
-        IDelegation(DELEGATION_ADDR).delegate{ value: crossChainParam.shares }(crossChainParam.targetValidator);
-
-        // 发出事件
-        // emit IValidatorManager.StakeEvent(crossChainParam.user, crossChainParam.shares, crossChainParam.targetValidator);
+        
+        // Transfer amount from JWKManager contract to targetAddress
+        address targetAddress = crossChainParam.targetAddress;
+        uint256 amount = crossChainParam.amount;
+        
+        // Check if contract has sufficient balance
+        if (address(this).balance < amount) {
+            revert InsufficientContractBalance();
+        }
+        
+        // Transfer ETH to target address
+        (bool success, ) = targetAddress.call{value: amount}("");
+        if (!success) {
+            revert TransferFailed();
+        }
+        
+        // Emit event for tracking
+        emit CrossChainDepositProcessed(
+            crossChainParam.id,
+            crossChainParam.sender,
+            targetAddress,
+            amount,
+            crossChainParam.blockNumber,
+            crossChainParam.issuer
+        );
     }
 }

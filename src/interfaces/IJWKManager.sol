@@ -85,12 +85,11 @@ interface IJWKManager is IParamSubscriber {
     }
 
     struct CrossChainParams {
-        // 2 => DelegationEvent
-        // 4 => UndelegationEvent
+        // 1 => CrossChainDepositEvent
         bytes id;
         address sender;
-        address targetValidator;
-        uint256 shares;
+        address targetAddress;
+        uint256 amount;
         uint256 blockNumber;
         string issuer;
     }
@@ -104,6 +103,14 @@ interface IJWKManager is IParamSubscriber {
     event PatchesUpdated(uint256 patchCount);
     event FederatedJWKsUpdated(address indexed dapp, string indexed issuer);
     event ConfigParamUpdated(string indexed key, uint256 oldValue, uint256 newValue);
+    event CrossChainDepositProcessed(
+        bytes indexed id,
+        address indexed sender,
+        address indexed targetAddress,
+        uint256 amount,
+        uint256 blockNumber,
+        string issuer
+    );
 
     // ======== Function Declarations ========
 
