@@ -11,6 +11,11 @@ import "@test/mocks/JWKManagerMock.sol";
 import "@test/mocks/EpochManagerMock.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
+// Simple receiver contract for testing
+contract SimpleReceiver {
+    receive() external payable { }
+}
+
 contract JWKManagerTest is Test, TestConstants {
     JWKManager public jwkManager;
     JWKManager public implementation;
@@ -295,6 +300,179 @@ contract JWKManagerTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(JWKManager.InsufficientContractBalance.selector);
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+    }
+
+    /// @notice Test event emission when processing CrossChainDepositEvent
+    function test_processCrossChainDepositEvent_shouldEmitEvent() public {
+        // Arrange
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: TEST_TARGET_ADDRESS,
+            amount: TEST_DEPOSIT_AMOUNT,
+            blockNumber: block.number,
+            issuer: TEST_ISSUER
+        });
+
+        // Act & Assert - Expect event to be emitted
+        vm.prank(SYSTEM_CALLER);
+        vm.expectEmit(true, true, true, true);
+        emit IJWKManager.CrossChainDepositProcessed(
+            bytes("1"), TEST_USER, TEST_TARGET_ADDRESS, TEST_DEPOSIT_AMOUNT, block.number, TEST_ISSUER
+        );
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+    }
+
+    /// @notice Test onchain block number is updated
+    function test_processCrossChainDepositEvent_shouldUpdateBlockNumber() public {
+        // Arrange
+        uint256 newBlockNumber = block.number + 100;
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: TEST_TARGET_ADDRESS,
+            amount: TEST_DEPOSIT_AMOUNT,
+            blockNumber: newBlockNumber,
+            issuer: TEST_ISSUER
+        });
+
+        // Act
+        vm.prank(SYSTEM_CALLER);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+
+        // Assert - Check block number was updated
+        (,,, uint256 onchainBlockNumber) = jwkManager.supportedProviders(0);
+        assertEq(onchainBlockNumber, newBlockNumber);
+    }
+
+    /// @notice Test processing deposit to contract address
+    function test_processCrossChainDepositEvent_toContractAddress_shouldSucceed() public {
+        // Arrange - Deploy a simple contract
+        SimpleReceiver receiver = new SimpleReceiver();
+        uint256 initialBalance = address(receiver).balance;
+
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: address(receiver),
+            amount: TEST_DEPOSIT_AMOUNT,
+            blockNumber: block.number,
+            issuer: TEST_ISSUER
+        });
+
+        // Act
+        vm.prank(SYSTEM_CALLER);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+
+        // Assert
+        assertEq(address(receiver).balance, initialBalance + TEST_DEPOSIT_AMOUNT);
+    }
+
+    /// @notice Test processing deposit with zero amount
+    function test_processCrossChainDepositEvent_zeroAmount_shouldSucceed() public {
+        // Arrange
+        uint256 initialBalance = TEST_TARGET_ADDRESS.balance;
+
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: TEST_TARGET_ADDRESS,
+            amount: 0,
+            blockNumber: block.number,
+            issuer: TEST_ISSUER
+        });
+
+        // Act
+        vm.prank(SYSTEM_CALLER);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+
+        // Assert - Balance should remain the same
+        assertEq(TEST_TARGET_ADDRESS.balance, initialBalance);
+    }
+
+    /// @notice Test processing deposit with maximum amount
+    function test_processCrossChainDepositEvent_maxAmount_shouldSucceed() public {
+        // Arrange
+        uint256 maxAmount = 100 ether;
+        address richTarget = address(0x9999);
+        uint256 initialBalance = richTarget.balance;
+
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: richTarget,
+            amount: maxAmount,
+            blockNumber: block.number,
+            issuer: TEST_ISSUER
+        });
+
+        // Act
+        vm.prank(SYSTEM_CALLER);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+
+        // Assert
+        assertEq(richTarget.balance, initialBalance + maxAmount);
+    }
+
+    /// @notice Test processing deposit with non-existent issuer should revert
+    function test_processCrossChainDepositEvent_nonExistentIssuer_shouldRevert() public {
+        // Arrange
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("1"),
+            sender: TEST_USER,
+            targetAddress: TEST_TARGET_ADDRESS,
+            amount: TEST_DEPOSIT_AMOUNT,
+            blockNumber: block.number,
+            issuer: "https://non-existent-issuer.com"
+        });
+
+        // Act & Assert
+        vm.prank(SYSTEM_CALLER);
+        vm.expectRevert(IJWKManager.IssuerNotFound.selector);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+    }
+
+    /// @notice Test processing deposit ignores non-"1" event IDs
+    function test_processCrossChainDepositEvent_nonOneId_shouldIgnore() public {
+        // Arrange
+        uint256 initialBalance = TEST_TARGET_ADDRESS.balance;
+
+        IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
+
+        IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
+        crossChainParams[0] = IJWKManager.CrossChainParams({
+            id: bytes("99"), // Non-"1" ID
+            sender: TEST_USER,
+            targetAddress: TEST_TARGET_ADDRESS,
+            amount: TEST_DEPOSIT_AMOUNT,
+            blockNumber: block.number,
+            issuer: TEST_ISSUER
+        });
+
+        // Act
+        vm.prank(SYSTEM_CALLER);
+        jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
+
+        // Assert - Balance should not change
+        assertEq(TEST_TARGET_ADDRESS.balance, initialBalance);
     }
 
     // Helper functions to avoid type conversion issues
