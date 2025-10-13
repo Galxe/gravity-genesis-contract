@@ -646,12 +646,14 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     ) internal {
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
-            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
-            } else if (keccak256(crossChainParam.id) == keccak256(bytes("2"))) {
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) { } else if (
+                keccak256(crossChainParam.id) == keccak256(bytes("2"))
+            ) {
                 // StakeEvent - 普通质押
                 _handleDelegationStakeEvent(crossChainParam);
-            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) {
-            } else if (keccak256(crossChainParam.id) == keccak256(bytes("4"))) {
+            } else if (keccak256(crossChainParam.id) == keccak256(bytes("3"))) { } else if (
+                keccak256(crossChainParam.id) == keccak256(bytes("4"))
+            ) {
                 // StakeEvent - 加入验证者集合
                 // _handleUndelegationEvent(jwk, providerJWKs.issuer);
             }

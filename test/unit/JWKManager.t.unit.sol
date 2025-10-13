@@ -94,17 +94,7 @@ contract JWKManagerTest is Test, TestConstants {
         IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
         crossChainParams[0] = IJWKManager.CrossChainParams({
             id: bytes("2"), // StakeEvent
-            validatorParams: IValidatorManager.ValidatorRegistrationParams({
-                consensusPublicKey: "",
-                blsProof: "",
-                commission: IValidatorManager.Commission({ rate: 0, maxRate: 0, maxChangeRate: 0 }),
-                moniker: "",
-                initialOperator: address(0),
-                initialBeneficiary: address(0),
-                validatorNetworkAddresses: "",
-                fullnodeNetworkAddresses: "",
-                aptosAddress: ""
-            }),
+            sender: TEST_USER,
             targetValidator: TEST_TARGET_VALIDATOR,
             shares: TEST_STAKE_AMOUNT,
             blockNumber: block.number,
@@ -259,17 +249,7 @@ contract JWKManagerTest is Test, TestConstants {
         IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](2);
         crossChainParams[0] = IJWKManager.CrossChainParams({
             id: bytes("1"), // StakeRegisterValidatorEvent
-            validatorParams: IValidatorManager.ValidatorRegistrationParams({
-                consensusPublicKey: TEST_CONSENSUS_KEY,
-                blsProof: TEST_BLS_PROOF,
-                commission: IValidatorManager.Commission({ rate: 1000, maxRate: 5000, maxChangeRate: 500 }),
-                moniker: TEST_MONIKER,
-                initialOperator: TEST_USER,
-                initialBeneficiary: TEST_USER,
-                validatorNetworkAddresses: "",
-                fullnodeNetworkAddresses: "",
-                aptosAddress: ""
-            }),
+            sender: TEST_USER,
             targetValidator: address(0),
             shares: TEST_STAKE_AMOUNT,
             blockNumber: block.number,
@@ -277,17 +257,7 @@ contract JWKManagerTest is Test, TestConstants {
         });
         crossChainParams[1] = IJWKManager.CrossChainParams({
             id: bytes("2"), // StakeEvent
-            validatorParams: IValidatorManager.ValidatorRegistrationParams({
-                consensusPublicKey: "",
-                blsProof: "",
-                commission: IValidatorManager.Commission({ rate: 0, maxRate: 0, maxChangeRate: 0 }),
-                moniker: "",
-                initialOperator: address(0),
-                initialBeneficiary: address(0),
-                validatorNetworkAddresses: "",
-                fullnodeNetworkAddresses: "",
-                aptosAddress: ""
-            }),
+            sender: TEST_USER,
             targetValidator: TEST_TARGET_VALIDATOR,
             shares: TEST_STAKE_AMOUNT,
             blockNumber: block.number,
@@ -336,7 +306,7 @@ contract JWKManagerTest is Test, TestConstants {
         IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
         crossChainParams[0] = IJWKManager.CrossChainParams({
             id: bytes("1"), // StakeRegisterValidatorEvent
-            validatorParams: params,
+            sender: TEST_USER,
             targetValidator: address(0),
             shares: TEST_STAKE_AMOUNT,
             blockNumber: block.number,
@@ -371,17 +341,7 @@ contract JWKManagerTest is Test, TestConstants {
         IJWKManager.CrossChainParams[] memory crossChainParams = new IJWKManager.CrossChainParams[](1);
         crossChainParams[0] = IJWKManager.CrossChainParams({
             id: bytes("2"), // StakeEvent
-            validatorParams: IValidatorManager.ValidatorRegistrationParams({
-                consensusPublicKey: "",
-                blsProof: "",
-                commission: IValidatorManager.Commission({ rate: 0, maxRate: 0, maxChangeRate: 0 }),
-                moniker: "",
-                initialOperator: address(0),
-                initialBeneficiary: address(0),
-                validatorNetworkAddresses: "",
-                fullnodeNetworkAddresses: "",
-                aptosAddress: ""
-            }),
+            sender: TEST_USER,
             targetValidator: TEST_TARGET_VALIDATOR,
             shares: TEST_STAKE_AMOUNT,
             blockNumber: block.number,
