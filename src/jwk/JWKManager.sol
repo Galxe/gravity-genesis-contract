@@ -651,7 +651,7 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         for (uint256 i = 0; i < crossChainParams.length; i++) {
             CrossChainParams calldata crossChainParam = crossChainParams[i];
             // Only support CrossChainDepositEvent (id="1")
-            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) { 
+            if (keccak256(crossChainParam.id) == keccak256(bytes("1"))) {
                 _handleCrossChainDepositEvent(crossChainParam);
             }
         }
@@ -661,22 +661,22 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
         CrossChainParams calldata crossChainParam
     ) internal {
         _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
-        
+
         // Transfer amount from JWKManager contract to targetAddress
         address targetAddress = crossChainParam.targetAddress;
         uint256 amount = crossChainParam.amount;
-        
+
         // Check if contract has sufficient balance
         if (address(this).balance < amount) {
             revert InsufficientContractBalance();
         }
-        
+
         // Transfer ETH to target address
-        (bool success, ) = targetAddress.call{value: amount}("");
+        (bool success,) = targetAddress.call{ value: amount }("");
         if (!success) {
             revert TransferFailed();
         }
-        
+
         // Emit event for tracking
         emit CrossChainDepositProcessed(
             crossChainParam.id,

@@ -77,7 +77,7 @@ contract JWKManagerTest is Test, TestConstants {
     function test_processCrossChainDepositEvent_shouldTransferFunds() public {
         // Arrange
         uint256 initialBalance = TEST_TARGET_ADDRESS.balance;
-        
+
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
 
         // Create CrossChainParams for deposit event
@@ -188,7 +188,7 @@ contract JWKManagerTest is Test, TestConstants {
         address target2 = address(0x2222);
         uint256 amount1 = 1 ether;
         uint256 amount2 = 2 ether;
-        
+
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
 
         // Create CrossChainParams for two deposit events
@@ -277,7 +277,7 @@ contract JWKManagerTest is Test, TestConstants {
     function test_processCrossChainDepositEvent_insufficientBalance_shouldRevert() public {
         // Arrange - Set contract balance to 0
         vm.deal(address(jwkManager), 0);
-        
+
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
 
         // Create CrossChainParams for deposit event
