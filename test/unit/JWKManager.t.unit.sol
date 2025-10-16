@@ -282,7 +282,7 @@ contract JWKManagerTest is Test, TestConstants {
     function test_processCrossChainDepositEvent_insufficientBalance_shouldEmitError() public {
         // Arrange - Set contract balance to 0
         vm.deal(address(jwkManager), 0);
-        
+
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
 
         // Create CrossChainParams for deposit event
@@ -330,13 +330,7 @@ contract JWKManagerTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, false, true);
         emit IJWKManager.CrossChainDepositProcessed(
-            TEST_USER,
-            TEST_TARGET_ADDRESS,
-            TEST_DEPOSIT_AMOUNT,
-            block.number,
-            true,
-            "",
-            TEST_ISSUER
+            TEST_USER, TEST_TARGET_ADDRESS, TEST_DEPOSIT_AMOUNT, block.number, true, "", TEST_ISSUER
         );
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
     }
