@@ -278,11 +278,11 @@ contract JWKManagerTest is Test, TestConstants {
         assertFalse(_getDelegationMock().stakeEventEmitted());
     }
 
-    /// @notice Test insufficient contract balance, should revert
-    function test_processCrossChainDepositEvent_insufficientBalance_shouldRevert() public {
+    /// @notice Test insufficient contract balance, should emit event with error
+    function test_processCrossChainDepositEvent_insufficientBalance_shouldEmitError() public {
         // Arrange - Set contract balance to 0
         vm.deal(address(jwkManager), 0);
-
+        
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
 
         // Create CrossChainParams for deposit event
@@ -296,9 +296,18 @@ contract JWKManagerTest is Test, TestConstants {
             issuer: TEST_ISSUER
         });
 
-        // Act & Assert
+        // Act & Assert - Expect event with error message
         vm.prank(SYSTEM_CALLER);
-        vm.expectRevert(JWKManager.InsufficientContractBalance.selector);
+        vm.expectEmit(true, true, false, true);
+        emit IJWKManager.CrossChainDepositProcessed(
+            TEST_USER,
+            TEST_TARGET_ADDRESS,
+            TEST_DEPOSIT_AMOUNT,
+            block.number,
+            false,
+            "InsufficientContractBalance",
+            TEST_ISSUER
+        );
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
     }
 
@@ -319,9 +328,15 @@ contract JWKManagerTest is Test, TestConstants {
 
         // Act & Assert - Expect event to be emitted
         vm.prank(SYSTEM_CALLER);
-        vm.expectEmit(true, true, true, true);
+        vm.expectEmit(true, true, false, true);
         emit IJWKManager.CrossChainDepositProcessed(
-            bytes("1"), TEST_USER, TEST_TARGET_ADDRESS, TEST_DEPOSIT_AMOUNT, block.number, TEST_ISSUER
+            TEST_USER,
+            TEST_TARGET_ADDRESS,
+            TEST_DEPOSIT_AMOUNT,
+            block.number,
+            true,
+            "",
+            TEST_ISSUER
         );
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
     }
@@ -429,7 +444,7 @@ contract JWKManagerTest is Test, TestConstants {
         assertEq(richTarget.balance, initialBalance + maxAmount);
     }
 
-    /// @notice Test processing deposit with non-existent issuer should revert
+    /// @notice Test processing deposit with non-existent issuer should still revert in _updateOnchainBlockNumber
     function test_processCrossChainDepositEvent_nonExistentIssuer_shouldRevert() public {
         // Arrange
         IJWKManager.ProviderJWKs[] memory providerJWKsArray = new IJWKManager.ProviderJWKs[](0);
@@ -444,7 +459,7 @@ contract JWKManagerTest is Test, TestConstants {
             issuer: "https://non-existent-issuer.com"
         });
 
-        // Act & Assert
+        // Act & Assert - This should still revert because _updateOnchainBlockNumber checks the issuer
         vm.prank(SYSTEM_CALLER);
         vm.expectRevert(IJWKManager.IssuerNotFound.selector);
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);

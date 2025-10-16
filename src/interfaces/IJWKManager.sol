@@ -104,11 +104,12 @@ interface IJWKManager is IParamSubscriber {
     event FederatedJWKsUpdated(address indexed dapp, string indexed issuer);
     event ConfigParamUpdated(string indexed key, uint256 oldValue, uint256 newValue);
     event CrossChainDepositProcessed(
-        bytes indexed id,
         address indexed sender,
         address indexed targetAddress,
         uint256 amount,
         uint256 blockNumber,
+        bool success,
+        string errorMessage,
         string issuer
     );
 

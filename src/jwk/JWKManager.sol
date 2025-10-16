@@ -19,10 +19,6 @@ import "@src/interfaces/IDelegation.sol";
 contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initializable {
     using Strings for string;
 
-    // ======== Errors ========
-    error InsufficientContractBalance();
-    error TransferFailed();
-
     // ======== Constants ========
     uint256 public constant MAX_FEDERATED_JWKS_SIZE_BYTES = 2 * 1024; // 2 KiB
     uint256 public constant MAX_PROVIDERS_PER_REQUEST = 50;
@@ -662,28 +658,30 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     ) internal {
         _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
 
-        // Transfer amount from JWKManager contract to targetAddress
         address targetAddress = crossChainParam.targetAddress;
         uint256 amount = crossChainParam.amount;
+        bool success = false;
+        string memory errorMessage = "";
 
         // Check if contract has sufficient balance
         if (address(this).balance < amount) {
-            revert InsufficientContractBalance();
-        }
-
-        // Transfer ETH to target address
-        (bool success,) = targetAddress.call{ value: amount }("");
-        if (!success) {
-            revert TransferFailed();
+            errorMessage = "InsufficientContractBalance";
+        } else {
+            // Transfer ETH to target address
+            (success,) = targetAddress.call{ value: amount }("");
+            if (!success) {
+                errorMessage = "TransferFailed";
+            }
         }
 
         // Emit event for tracking
         emit CrossChainDepositProcessed(
-            crossChainParam.id,
             crossChainParam.sender,
             targetAddress,
             amount,
             crossChainParam.blockNumber,
+            success,
+            errorMessage,
             crossChainParam.issuer
         );
     }
