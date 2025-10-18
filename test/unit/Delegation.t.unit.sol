@@ -69,12 +69,10 @@ contract DelegationTest is Test, TestConstants {
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setIsValidatorExists(validator2, true);
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStakeCredit(validator1, address(stakeCreditMock));
         ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStakeCredit(validator2, address(stakeCreditMock));
-        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator1, IValidatorManager.ValidatorStatus.ACTIVE
-        );
-        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2, IValidatorManager.ValidatorStatus.ACTIVE
-        );
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR)
+            .setValidatorStatus(validator1, IValidatorManager.ValidatorStatus.ACTIVE);
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR)
+            .setValidatorStatus(validator2, IValidatorManager.ValidatorStatus.ACTIVE);
 
         // Setup stake config mocks
         vm.mockCall(
@@ -455,9 +453,8 @@ contract DelegationTest is Test, TestConstants {
     function test_redelegate_shouldAllowSelfDelegationToJailedValidator() public {
         // Arrange
         // Use ValidatorManagerMock method to set validator2 status as INACTIVE on system address
-        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2, IValidatorManager.ValidatorStatus.INACTIVE
-        );
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR)
+            .setValidatorStatus(validator2, IValidatorManager.ValidatorStatus.INACTIVE);
 
         uint256 shares = 1000;
         uint256 unbondAmount = 1 ether;
@@ -493,9 +490,8 @@ contract DelegationTest is Test, TestConstants {
     function test_redelegate_shouldRevertForNonSelfDelegationToJailedValidator() public {
         // Arrange
         // Use ValidatorManagerMock method to set validator2 status as INACTIVE on system address
-        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR).setValidatorStatus(
-            validator2, IValidatorManager.ValidatorStatus.INACTIVE
-        );
+        ValidatorManagerMock(VALIDATOR_MANAGER_ADDR)
+            .setValidatorStatus(validator2, IValidatorManager.ValidatorStatus.INACTIVE);
 
         // Act & Assert
         vm.prank(delegator1); // Not the validator itself

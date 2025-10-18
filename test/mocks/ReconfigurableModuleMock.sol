@@ -6,7 +6,10 @@ contract ReconfigurableModuleMock {
     bool public shouldRevert;
     string public revertMessage;
 
-    function setRevertBehavior(bool _shouldRevert, string memory _message) external {
+    function setRevertBehavior(
+        bool _shouldRevert,
+        string memory _message
+    ) external {
         shouldRevert = _shouldRevert;
         revertMessage = _message;
     }

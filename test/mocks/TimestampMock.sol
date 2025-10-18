@@ -20,7 +20,10 @@ contract TimestampMock {
         mockCurrentTime = 1; // Set initial time
     }
 
-    function updateGlobalTime(address proposer, uint64 timestampMicros) external {
+    function updateGlobalTime(
+        address proposer,
+        uint64 timestampMicros
+    ) external {
         lastCall.proposer = proposer;
         lastCall.timestampMicros = timestampMicros;
         lastCall.callCount++;

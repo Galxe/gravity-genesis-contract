@@ -22,7 +22,11 @@ contract StakeCreditMock is IStakeCredit {
     // ======== Required Interface Implementation ========
     // Most functions are not used in testing, so they revert or return defaults
 
-    function initialize(address, string memory, address) external payable {
+    function initialize(
+        address,
+        string memory,
+        address
+    ) external payable {
         revert("StakeCreditMock: not implemented");
     }
 
@@ -32,15 +36,24 @@ contract StakeCreditMock is IStakeCredit {
         revert("StakeCreditMock: not implemented");
     }
 
-    function unlock(address, uint256) external pure returns (uint256) {
+    function unlock(
+        address,
+        uint256
+    ) external pure returns (uint256) {
         revert("StakeCreditMock: not implemented");
     }
 
-    function unbond(address, uint256) external pure returns (uint256) {
+    function unbond(
+        address,
+        uint256
+    ) external pure returns (uint256) {
         revert("StakeCreditMock: not implemented");
     }
 
-    function reactivateStake(address, uint256) external pure returns (uint256) {
+    function reactivateStake(
+        address,
+        uint256
+    ) external pure returns (uint256) {
         revert("StakeCreditMock: not implemented");
     }
 
@@ -206,19 +219,32 @@ contract StakeCreditMock is IStakeCredit {
         return 18;
     }
 
-    function transfer(address, uint256) external pure returns (bool) {
+    function transfer(
+        address,
+        uint256
+    ) external pure returns (bool) {
         revert("StakeCreditMock: transfer not allowed");
     }
 
-    function allowance(address, address) external pure returns (uint256) {
+    function allowance(
+        address,
+        address
+    ) external pure returns (uint256) {
         return 0;
     }
 
-    function approve(address, uint256) external pure returns (bool) {
+    function approve(
+        address,
+        uint256
+    ) external pure returns (bool) {
         revert("StakeCreditMock: approve not allowed");
     }
 
-    function transferFrom(address, address, uint256) external pure returns (bool) {
+    function transferFrom(
+        address,
+        address,
+        uint256
+    ) external pure returns (bool) {
         revert("StakeCreditMock: transferFrom not allowed");
     }
 }

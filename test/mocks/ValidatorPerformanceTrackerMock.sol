@@ -20,7 +20,10 @@ contract ValidatorPerformanceTrackerMock {
         // Mock initialization - just store that we're initialized
     }
 
-    function updatePerformanceStatistics(uint64 proposerIndex, uint64[] calldata failedProposerIndices) external {
+    function updatePerformanceStatistics(
+        uint64 proposerIndex,
+        uint64[] calldata failedProposerIndices
+    ) external {
         lastCall.proposerIndex = proposerIndex;
         lastCall.failedProposerIndices = failedProposerIndices;
         lastCall.callCount++;

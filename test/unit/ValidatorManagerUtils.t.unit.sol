@@ -141,7 +141,7 @@ contract ValidatorManagerUtilsTest is Test, TestConstants {
             rate: 1000, // 10%
             maxRate: 5000, // 50%
             maxChangeRate: 500 // 5%
-         });
+        });
 
         // Act - should not revert (use empty consensus key to avoid BLS verification in tests)
         validatorManagerUtils.validateRegistrationParams(

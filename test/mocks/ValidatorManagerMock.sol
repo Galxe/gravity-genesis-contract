@@ -25,11 +25,17 @@ contract ValidatorManagerMock {
         }
     }
 
-    function setIsCurrentEpochValidator(address validator, bool isValidator) external {
+    function setIsCurrentEpochValidator(
+        address validator,
+        bool isValidator
+    ) external {
         isCurrentEpochValidatorMap[validator] = isValidator;
     }
 
-    function setValidatorIndex(address validator, uint64 index) external {
+    function setValidatorIndex(
+        address validator,
+        uint64 index
+    ) external {
         validatorIndexMap[validator] = index;
     }
 
@@ -67,7 +73,10 @@ contract ValidatorManagerMock {
         return (addr, validatorIndexMap[addr]);
     }
 
-    function setIsValidatorExists(address validator, bool exists) external {
+    function setIsValidatorExists(
+        address validator,
+        bool exists
+    ) external {
         validatorExistsMap[validator] = exists;
     }
 
@@ -77,7 +86,10 @@ contract ValidatorManagerMock {
         return validatorExistsMap[validator];
     }
 
-    function setValidatorStakeCredit(address validator, address stakeCredit) external {
+    function setValidatorStakeCredit(
+        address validator,
+        address stakeCredit
+    ) external {
         validatorStakeCreditMap[validator] = stakeCredit;
     }
 
@@ -87,7 +99,10 @@ contract ValidatorManagerMock {
         return validatorStakeCreditMap[validator];
     }
 
-    function setValidatorStatus(address validator, IValidatorManager.ValidatorStatus status) external {
+    function setValidatorStatus(
+        address validator,
+        IValidatorManager.ValidatorStatus status
+    ) external {
         validatorStatusMap[validator] = status;
     }
 
@@ -97,7 +112,10 @@ contract ValidatorManagerMock {
         return validatorStatusMap[validator];
     }
 
-    function setValidatorStake(address validator, uint256 stake) external {
+    function setValidatorStake(
+        address validator,
+        uint256 stake
+    ) external {
         validatorStakeMap[validator] = stake;
     }
 

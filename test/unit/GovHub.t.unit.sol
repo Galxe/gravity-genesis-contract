@@ -13,7 +13,10 @@ contract MockParamSubscriber is IParamSubscriber {
     bool public shouldRevert;
     string public revertMessage;
 
-    function updateParam(string calldata key, bytes calldata value) external {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external {
         if (shouldRevert) {
             revert(revertMessage);
         }
@@ -21,7 +24,10 @@ contract MockParamSubscriber is IParamSubscriber {
         lastValue = value;
     }
 
-    function setRevert(bool _shouldRevert, string calldata _message) external {
+    function setRevert(
+        bool _shouldRevert,
+        string calldata _message
+    ) external {
         shouldRevert = _shouldRevert;
         revertMessage = _message;
     }
@@ -305,7 +311,10 @@ contract GovHubTest is Test, TestConstants {
 
     // ============ FUZZ TESTS ============
 
-    function testFuzz_updateParam_validInputs(string calldata key, bytes calldata value) public {
+    function testFuzz_updateParam_validInputs(
+        string calldata key,
+        bytes calldata value
+    ) public {
         // Arrange
         vm.assume(bytes(key).length > 0 && bytes(key).length < 1000);
         vm.assume(value.length < 1000);

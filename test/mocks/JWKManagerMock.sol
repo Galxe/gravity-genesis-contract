@@ -49,11 +49,17 @@ contract JWKManagerMock {
         initialized = true;
     }
 
-    function setValidatorExists(address validator, bool exists) external {
+    function setValidatorExists(
+        address validator,
+        bool exists
+    ) external {
         validatorExistsMap[validator] = exists;
     }
 
-    function setValidatorStakeCredit(address validator, address stakeCredit) external {
+    function setValidatorStakeCredit(
+        address validator,
+        address stakeCredit
+    ) external {
         validatorStakeCreditMap[validator] = stakeCredit;
     }
 

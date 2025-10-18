@@ -440,7 +440,10 @@ contract StakeConfigTest is Test, TestConstants {
         }
     }
 
-    function testFuzz_isValidCommissionChange_withinLimit(uint256 oldRate, uint256 newRate) public view {
+    function testFuzz_isValidCommissionChange_withinLimit(
+        uint256 oldRate,
+        uint256 newRate
+    ) public view {
         // Arrange
         vm.assume(oldRate <= 10000 && newRate <= 10000);
         uint256 change = oldRate > newRate ? oldRate - newRate : newRate - oldRate;

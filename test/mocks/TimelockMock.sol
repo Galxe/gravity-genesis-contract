@@ -125,7 +125,11 @@ contract TimelockMock {
     }
 
     // Required for AccessControl
-    function hasRole(bytes32, /* role */ address /* account */ ) external pure returns (bool) {
+    function hasRole(
+        bytes32,
+        /* role */
+        address /* account */
+    ) external pure returns (bool) {
         return true;
     }
 
@@ -135,15 +139,27 @@ contract TimelockMock {
         return 0x00;
     }
 
-    function grantRole(bytes32, /* role */ address /* account */ ) external {
+    function grantRole(
+        bytes32,
+        /* role */
+        address /* account */
+    ) external {
         // Mock implementation
     }
 
-    function revokeRole(bytes32, /* role */ address /* account */ ) external {
+    function revokeRole(
+        bytes32,
+        /* role */
+        address /* account */
+    ) external {
         // Mock implementation
     }
 
-    function renounceRole(bytes32, /* role */ address /* account */ ) external {
+    function renounceRole(
+        bytes32,
+        /* role */
+        address /* account */
+    ) external {
         // Mock implementation
     }
 
