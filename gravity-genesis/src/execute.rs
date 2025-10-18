@@ -2,7 +2,7 @@ use crate::{
     genesis::{GenesisConfig, call_genesis_initialize},
     jwks::{upsert_observed_jwks, upsert_oidc_providers},
     utils::{
-        CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_ADDRESS, analyze_txn_result,
+        CONTRACTS, GENESIS_ADDR, SYSTEM_ACCOUNT_INFO, SYSTEM_CALLER, analyze_txn_result,
         execute_revm_sequential, read_hex_from_file,
     },
 };
@@ -23,7 +23,7 @@ fn deploy_bsc_style(byte_code_dir: &str) -> InMemoryDB {
     let mut db = InMemoryDB::default();
 
     // Add system address with balance
-    db.insert_account_info(SYSTEM_ADDRESS, SYSTEM_ACCOUNT_INFO);
+    db.insert_account_info(SYSTEM_CALLER, SYSTEM_ACCOUNT_INFO);
 
     for (contract_name, target_address) in CONTRACTS {
         let hex_path = format!("{}/{}.hex", byte_code_dir, contract_name);
@@ -220,7 +220,7 @@ pub fn genesis_generate(
     }
 
     // Add any state changes from the bundle_state (from the initialize transaction)
-    bundle_state.state.remove(&SYSTEM_ADDRESS);
+    bundle_state.state.remove(&SYSTEM_CALLER);
     // write bundle state into one json file named bundle_state.json
     serde_json::to_writer_pretty(
         BufWriter::new(File::create(format!("{output_dir}/bundle_state.json")).unwrap()),
