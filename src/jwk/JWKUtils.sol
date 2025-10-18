@@ -225,8 +225,7 @@ library JWKUtils {
         if (nameBytes.length < 8) return false;
 
         // TODO: if the prefix is gravity://, it is valid
-        bytes8 httpsPrefix =
-            bytes8(nameBytes[0]) | (bytes8(nameBytes[1]) << 8) | (bytes8(nameBytes[2]) << 16)
+        bytes8 httpsPrefix = bytes8(nameBytes[0]) | (bytes8(nameBytes[1]) << 8) | (bytes8(nameBytes[2]) << 16)
             | (bytes8(nameBytes[3]) << 24) | (bytes8(nameBytes[4]) << 32) | (bytes8(nameBytes[5]) << 40)
             | (bytes8(nameBytes[6]) << 48) | (bytes8(nameBytes[7]) << 56);
 
