@@ -139,7 +139,10 @@ interface IStakeConfig {
      * @param key The parameter name
      * @param value The new value encoded as bytes
      */
-    function updateParam(string calldata key, bytes calldata value) external;
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external;
 
     /**
      * @dev Returns the required stake limits
@@ -214,5 +217,8 @@ interface IStakeConfig {
      * @param newRate The new rate
      * @return True if valid, false otherwise
      */
-    function isValidCommissionChange(uint256 oldRate, uint256 newRate) external view returns (bool);
+    function isValidCommissionChange(
+        uint256 oldRate,
+        uint256 newRate
+    ) external view returns (bool);
 }

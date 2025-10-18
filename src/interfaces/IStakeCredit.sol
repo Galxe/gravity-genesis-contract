@@ -53,7 +53,11 @@ interface IStakeCredit {
      * @param _moniker Validator name
      * @param _beneficiary Commission beneficiary address
      */
-    function initialize(address _validator, string memory _moniker, address _beneficiary) external payable;
+    function initialize(
+        address _validator,
+        string memory _moniker,
+        address _beneficiary
+    ) external payable;
 
     /**
      * @dev Add stake to the pool
@@ -70,7 +74,10 @@ interface IStakeCredit {
      * @param shares The number of shares to unlock
      * @return gAmount The G amount unlocked
      */
-    function unlock(address delegator, uint256 shares) external returns (uint256 gAmount);
+    function unlock(
+        address delegator,
+        uint256 shares
+    ) external returns (uint256 gAmount);
 
     /**
      * @dev Unbond stake immediately (for redelegation)
@@ -78,7 +85,10 @@ interface IStakeCredit {
      * @param shares The number of shares to unbond
      * @return gAmount The G amount unbonded
      */
-    function unbond(address delegator, uint256 shares) external returns (uint256 gAmount);
+    function unbond(
+        address delegator,
+        uint256 shares
+    ) external returns (uint256 gAmount);
 
     /**
      * @dev Reactivate pending inactive stake
@@ -86,7 +96,10 @@ interface IStakeCredit {
      * @param shares The number of shares to reactivate
      * @return gAmount The G amount reactivated
      */
-    function reactivateStake(address delegator, uint256 shares) external returns (uint256 gAmount);
+    function reactivateStake(
+        address delegator,
+        uint256 shares
+    ) external returns (uint256 gAmount);
 
     /**
      * @dev Distribute rewards to the stake pool

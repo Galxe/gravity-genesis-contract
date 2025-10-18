@@ -445,7 +445,11 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev Override _update to disable direct transfers between accounts
      */
-    function _update(address from, address to, uint256 value) internal virtual override {
+    function _update(
+        address from,
+        address to,
+        uint256 value
+    ) internal virtual override {
         if (from != address(0) && to != address(0)) {
             revert TransferNotAllowed();
         }
@@ -455,7 +459,12 @@ contract StakeCredit is Initializable, ERC20Upgradeable, ReentrancyGuardUpgradea
     /**
      * @dev Override _approve to disable approvals
      */
-    function _approve(address, address, uint256, bool) internal virtual override {
+    function _approve(
+        address,
+        address,
+        uint256,
+        bool
+    ) internal virtual override {
         revert ApproveNotAllowed();
     }
 

@@ -245,7 +245,10 @@ contract StakeConfig is System, IStakeConfig, IParamSubscriber, Initializable {
     }
 
     /// @inheritdoc IStakeConfig
-    function isValidCommissionChange(uint256 oldRate, uint256 newRate) external view returns (bool) {
+    function isValidCommissionChange(
+        uint256 oldRate,
+        uint256 newRate
+    ) external view returns (bool) {
         uint256 change = oldRate > newRate ? oldRate - newRate : newRate - oldRate;
         return change <= maxCommissionChangeRate;
     }

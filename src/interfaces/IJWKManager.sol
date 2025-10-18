@@ -73,7 +73,6 @@ interface IJWKManager is IParamSubscriber {
         RemoveIssuer, // Remove specific issuer
         RemoveJWK, // Remove specific JWK
         UpsertJWK // Insert or update JWK
-
     }
 
     /// @dev Patch operation
@@ -126,7 +125,10 @@ interface IJWKManager is IParamSubscriber {
      * @param name The provider name (issuer URL)
      * @param configUrl The OpenID configuration URL
      */
-    function upsertOIDCProvider(string calldata name, string calldata configUrl) external;
+    function upsertOIDCProvider(
+        string calldata name,
+        string calldata configUrl
+    ) external;
 
     /**
      * @dev Removes an OIDC provider by marking it as inactive
@@ -213,7 +215,10 @@ interface IJWKManager is IParamSubscriber {
      * @param jwkId The key ID to look up
      * @return The JWK struct
      */
-    function getPatchedJWK(string calldata issuer, bytes calldata jwkId) external view returns (JWK memory);
+    function getPatchedJWK(
+        string calldata issuer,
+        bytes calldata jwkId
+    ) external view returns (JWK memory);
 
     /**
      * @dev Attempts to get a patched JWK without reverting on failure

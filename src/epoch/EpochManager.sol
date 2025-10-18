@@ -53,7 +53,10 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
      * @param key Parameter name
      * @param value Parameter value
      */
-    function updateParam(string calldata key, bytes calldata value) external override onlyGov {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external override onlyGov {
         if (Strings.equal(key, "epochIntervalMicrosecs")) {
             uint256 newValue = abi.decode(value, (uint256));
             if (newValue == 0) revert InvalidEpochDuration();
@@ -97,11 +100,7 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
     }
 
     /// @inheritdoc IEpochManager
-    function getCurrentEpochInfo()
-        external
-        view
-        returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval)
-    {
+    function getCurrentEpochInfo() external view returns (uint256 epoch, uint256 lastTransitionTime, uint256 interval) {
         return (currentEpoch, lastEpochTransitionTime, epochIntervalMicrosecs);
     }
 

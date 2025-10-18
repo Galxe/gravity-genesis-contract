@@ -29,7 +29,10 @@ interface IGroth16Verifier {
      * @param compressedProof Compressed points (A, B, C) matching the output of compressProof
      * @param input Public input field elements in the scalar field Fr. Elements must be reduced
      */
-    function verifyCompressedProof(uint256[4] calldata compressedProof, uint256[3] calldata input) external view;
+    function verifyCompressedProof(
+        uint256[4] calldata compressedProof,
+        uint256[3] calldata input
+    ) external view;
 
     /**
      * @dev Verify uncompressed Groth16 proof
@@ -38,5 +41,8 @@ interface IGroth16Verifier {
      * @param proof EIP-197 formatted points (A, B, C) matching the output of compressProof
      * @param input Public input field elements in the scalar field Fr. Elements must be reduced
      */
-    function verifyProof(uint256[8] calldata proof, uint256[3] calldata input) external view;
+    function verifyProof(
+        uint256[8] calldata proof,
+        uint256[3] calldata input
+    ) external view;
 }

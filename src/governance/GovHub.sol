@@ -17,7 +17,11 @@ contract GovHub is System {
         address target;
     }
 
-    function updateParam(string calldata key, bytes calldata value, address target) external onlyGovernorTimelock {
+    function updateParam(
+        string calldata key,
+        bytes calldata value,
+        address target
+    ) external onlyGovernorTimelock {
         ParamChangePackage memory proposal = ParamChangePackage(key, value, target);
         notifyUpdates(proposal);
     }

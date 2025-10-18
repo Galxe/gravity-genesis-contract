@@ -27,7 +27,10 @@ contract Timelock is System, Initializable, TimelockControllerUpgradeable {
      * @param key the key of the param
      * @param value the value of the param
      */
-    function updateParam(string calldata key, bytes calldata value) external onlyGov {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external onlyGov {
         if (Strings.equal(key, "minDelay")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinDelay = value.bytesToUint256(0);

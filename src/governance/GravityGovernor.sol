@@ -133,7 +133,10 @@ contract GravityGovernor is
      * @param key the key of the param
      * @param value the value of the param
      */
-    function updateParam(string calldata key, bytes calldata value) external onlyGov {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external onlyGov {
         if (Strings.equal(key, "votingDelay")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newVotingDelay = value.bytesToUint256(0);
@@ -359,7 +362,10 @@ contract GravityGovernor is
     /**
      * @dev See {IGovernor-hasVoted}.
      */
-    function hasVoted(uint256 proposalId, address account) public view returns (bool) {
+    function hasVoted(
+        uint256 proposalId,
+        address account
+    ) public view returns (bool) {
         return _proposalVotes[proposalId].hasVoted[account];
     }
 
@@ -372,6 +378,7 @@ contract GravityGovernor is
         ProposalVote storage proposalVote = _proposalVotes[proposalId];
         return (proposalVote.againstVotes, proposalVote.forVotes, proposalVote.abstainVotes);
     }
+
     /*----------------- view functions -----------------*/
 
     /**

@@ -49,7 +49,10 @@ library JWKUtils {
      * @param id JWK标识符
      * @param payload JWK原始数据
      */
-    function newUnsupportedJWK(bytes memory id, bytes memory payload) internal pure returns (IJWKManager.JWK memory) {
+    function newUnsupportedJWK(
+        bytes memory id,
+        bytes memory payload
+    ) internal pure returns (IJWKManager.JWK memory) {
         IJWKManager.UnsupportedJWK memory unsupportedJWK = IJWKManager.UnsupportedJWK({ id: id, payload: payload });
 
         return IJWKManager.JWK({
@@ -222,7 +225,8 @@ library JWKUtils {
         if (nameBytes.length < 8) return false;
 
         // TODO: if the prefix is gravity://, it is valid
-        bytes8 httpsPrefix = bytes8(nameBytes[0]) | (bytes8(nameBytes[1]) << 8) | (bytes8(nameBytes[2]) << 16)
+        bytes8 httpsPrefix =
+            bytes8(nameBytes[0]) | (bytes8(nameBytes[1]) << 8) | (bytes8(nameBytes[2]) << 16)
             | (bytes8(nameBytes[3]) << 24) | (bytes8(nameBytes[4]) << 32) | (bytes8(nameBytes[5]) << 40)
             | (bytes8(nameBytes[6]) << 48) | (bytes8(nameBytes[7]) << 56);
 
@@ -239,7 +243,10 @@ library JWKUtils {
      * @param b String B
      * @return true if strings are equal
      */
-    function _stringsEqual(string memory a, string memory b) internal pure returns (bool) {
+    function _stringsEqual(
+        string memory a,
+        string memory b
+    ) internal pure returns (bool) {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 
@@ -249,7 +256,10 @@ library JWKUtils {
      * @param b String B
      * @return -1 if a < b, 0 if a == b, 1 if a > b
      */
-    function compareStrings(string memory a, string memory b) internal pure returns (int256) {
+    function compareStrings(
+        string memory a,
+        string memory b
+    ) internal pure returns (int256) {
         bytes memory aBytes = bytes(a);
         bytes memory bBytes = bytes(b);
 
@@ -339,7 +349,10 @@ contract JWKManagerFactory {
      * @param n Modulus
      * @return Google-formatted RSA JWK
      */
-    function createGoogleRSAJWK(string memory kid, string memory n) external pure returns (IJWKManager.JWK memory) {
+    function createGoogleRSAJWK(
+        string memory kid,
+        string memory n
+    ) external pure returns (IJWKManager.JWK memory) {
         return JWKUtils.newRSAJWK(kid, "RS256", "AQAB", n);
     }
 

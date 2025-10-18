@@ -142,7 +142,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
                     rate: 0,
                     maxRate: 5000, // default max commission rate 50%
                     maxChangeRate: 500 // default max daily change rate 5%
-                 }),
+                }),
                 moniker: string(abi.encodePacked("VAL", uint256(i))), // generate default name
                 registered: true,
                 stakeCreditAddress: stakeCreditAddress,
@@ -184,18 +184,19 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         bytes32 monikerHash = keccak256(abi.encodePacked(params.moniker));
         // TODO: remove this
         // require(params.aptosAddress.length == 32, "Validator aptos address must be 32 bytes");
-        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).validateRegistrationParams(
-            validator,
-            params.consensusPublicKey,
-            params.blsProof,
-            params.moniker,
-            params.commission,
-            params.initialOperator,
-            params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0),
-            _monikerSet[monikerHash],
-            operatorToValidator[params.initialOperator] != address(0),
-            validatorInfos[validator].registered
-        );
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR)
+            .validateRegistrationParams(
+                validator,
+                params.consensusPublicKey,
+                params.blsProof,
+                params.moniker,
+                params.commission,
+                params.initialOperator,
+                params.consensusPublicKey.length > 0 && consensusToValidator[params.consensusPublicKey] != address(0),
+                _monikerSet[monikerHash],
+                operatorToValidator[params.initialOperator] != address(0),
+                validatorInfos[validator].registered
+            );
 
         // check下溢检查
         if (amount < IStakeConfig(STAKE_CONFIG_ADDR).lockAmount()) {
@@ -244,7 +245,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         _setValidatorStatus(validator, stakeCreditAddress);
     }
 
-    function _setValidatorBasicInfo(address validator, ValidatorRegistrationParams calldata params) internal {
+    function _setValidatorBasicInfo(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) internal {
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.moniker = params.moniker;
@@ -253,7 +257,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.operator = params.initialOperator;
     }
 
-    function _setValidatorAddresses(address validator, ValidatorRegistrationParams calldata params) internal {
+    function _setValidatorAddresses(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) internal {
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.consensusPublicKey = params.consensusPublicKey;
@@ -262,7 +269,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
         info.aptosAddress = params.aptosAddress;
     }
 
-    function _setValidatorStatus(address validator, address stakeCreditAddress) internal {
+    function _setValidatorStatus(
+        address validator,
+        address stakeCreditAddress
+    ) internal {
         ValidatorInfo storage info = validatorInfos[validator];
 
         info.registered = true;
@@ -275,7 +285,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev setup validator mappings
      */
-    function _setupValidatorMappings(address validator, ValidatorRegistrationParams calldata params) internal {
+    function _setupValidatorMappings(
+        address validator,
+        ValidatorRegistrationParams calldata params
+    ) internal {
         operatorToValidator[params.initialOperator] = validator;
 
         if (params.consensusPublicKey.length > 0) {
@@ -286,13 +299,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// @inheritdoc IValidatorManager
     function joinValidatorSet(
         address validator
-    )
-        external
-        whenNotPaused
-        whenValidatorSetChangeAllowed
-        validatorExists(validator)
-        onlyValidatorOperator(validator)
-    {
+    ) external whenNotPaused whenValidatorSetChangeAllowed validatorExists(validator) onlyValidatorOperator(validator) {
         ValidatorInfo storage info = validatorInfos[validator];
 
         // check current status
@@ -330,9 +337,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             }
         }
 
-        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
-            votingPower, validatorSetData.totalVotingPower, currentPendingPower
-        );
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR)
+            .checkVotingPowerIncrease(votingPower, validatorSetData.totalVotingPower, currentPendingPower);
 
         // update status to PENDING_ACTIVE
         info.status = ValidatorStatus.PENDING_ACTIVE;
@@ -355,13 +361,7 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /// @inheritdoc IValidatorManager
     function leaveValidatorSet(
         address validator
-    )
-        external
-        whenNotPaused
-        whenValidatorSetChangeAllowed
-        validatorExists(validator)
-        onlyValidatorOperator(validator)
-    {
+    ) external whenNotPaused whenValidatorSetChangeAllowed validatorExists(validator) onlyValidatorOperator(validator) {
         ValidatorInfo storage info = validatorInfos[validator];
         uint8 currentStatus = uint8(info.status);
         uint64 currentEpoch = uint64(IEpochManager(EPOCH_MANAGER_ADDR).currentEpoch());
@@ -603,7 +603,10 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     /**
      * @dev 重新计算验证者集合
      */
-    function _recalculateValidatorSet(uint256 minStakeRequired, uint64 currentEpoch) internal {
+    function _recalculateValidatorSet(
+        uint256 minStakeRequired,
+        uint64 currentEpoch
+    ) internal {
         uint256 newTotalVotingPower = 0;
         address[] memory currentActive = activeValidators.values();
 
@@ -754,9 +757,8 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
             }
         }
 
-        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR).checkVotingPowerIncrease(
-            increaseAmount, validatorSetData.totalVotingPower, currentPendingPower
-        );
+        IValidatorManagerUtils(VALIDATOR_MANAGER_UTILS_ADDR)
+            .checkVotingPowerIncrease(increaseAmount, validatorSetData.totalVotingPower, currentPendingPower);
     }
 
     /// @inheritdoc IValidatorManager
@@ -974,17 +976,26 @@ contract ValidatorManager is System, ReentrancyGuard, Protectable, IValidatorMan
     }
 
     /// @inheritdoc IValidatorManager
-    function isValidator(address validator, address account) public view returns (bool) {
+    function isValidator(
+        address validator,
+        address account
+    ) public view returns (bool) {
         return validator == account && validatorInfos[validator].registered;
     }
 
     /// @inheritdoc IValidatorManager
-    function isOperator(address validator, address account) public view returns (bool) {
+    function isOperator(
+        address validator,
+        address account
+    ) public view returns (bool) {
         return validatorInfos[validator].registered && validatorInfos[validator].operator == account;
     }
 
     /// @inheritdoc IValidatorManager
-    function hasOperatorPermission(address validator, address account) public view returns (bool) {
+    function hasOperatorPermission(
+        address validator,
+        address account
+    ) public view returns (bool) {
         if (!validatorInfos[validator].registered) return false;
 
         return account == validator || account == validatorInfos[validator].operator;

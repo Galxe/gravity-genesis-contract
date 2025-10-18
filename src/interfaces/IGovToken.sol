@@ -29,7 +29,10 @@ interface IGovToken {
      * @param account The user account address
      * @return The amount of tokens minted for this combination
      */
-    function mintedMap(address stakeCredit, address account) external view returns (uint256);
+    function mintedMap(
+        address stakeCredit,
+        address account
+    ) external view returns (uint256);
 
     /*----------------- external functions -----------------*/
     /**
@@ -44,7 +47,10 @@ interface IGovToken {
      * @param account The account to sync gov tokens to
      * @notice Can only be called by StakeHub
      */
-    function sync(address stakeCredit, address account) external;
+    function sync(
+        address stakeCredit,
+        address account
+    ) external;
 
     /**
      * @dev Batch sync accounts' govG amounts to actual BNB values of StakingCredits
@@ -52,7 +58,10 @@ interface IGovToken {
      * @param account The account to sync gov tokens to
      * @notice Can only be called by StakeHub
      */
-    function syncBatch(address[] calldata stakeCredits, address account) external;
+    function syncBatch(
+        address[] calldata stakeCredits,
+        address account
+    ) external;
 
     /**
      * @dev Delegate govG votes from delegator to delegatee
@@ -60,7 +69,10 @@ interface IGovToken {
      * @param delegatee The address receiving delegated votes
      * @notice Can only be called by StakeHub
      */
-    function delegateVote(address delegator, address delegatee) external;
+    function delegateVote(
+        address delegator,
+        address delegatee
+    ) external;
 
     /**
      * @dev Burn tokens (disabled - will always revert)
@@ -77,7 +89,10 @@ interface IGovToken {
      * @param amount Amount to burn (ignored)
      * @notice This function is disabled and will always revert
      */
-    function burnFrom(address account, uint256 amount) external pure;
+    function burnFrom(
+        address account,
+        uint256 amount
+    ) external pure;
 
     function totalSupply() external view returns (uint256);
 }

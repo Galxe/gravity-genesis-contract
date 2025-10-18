@@ -62,7 +62,10 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
         return authorizedCallers[addr];
     }
 
-    function updateParam(string calldata key, bytes calldata value) external override onlyGov {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external override onlyGov {
         if (Strings.equal(key, "addAuthorizedCaller")) {
             bytes memory valueLocal = value;
             require(valueLocal.length == 20, "length of value for addAuthorizedCaller should be 20");

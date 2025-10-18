@@ -315,7 +315,10 @@ contract ValidatorPerformanceTracker is System, IValidatorPerformanceTracker {
      * @param validators New validator addresses
      * @param epoch Current epoch number
      */
-    function _updateActiveValidatorSet(address[] memory validators, uint256 epoch) internal {
+    function _updateActiveValidatorSet(
+        address[] memory validators,
+        uint256 epoch
+    ) internal {
         if (validators.length == 0) revert EmptyActiveValidatorSet();
 
         // Clear old validator mappings

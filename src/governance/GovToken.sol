@@ -41,7 +41,10 @@ contract GovToken is
      * @param stakeCredit the stakeCredit Token contract
      * @param account the account to sync gov tokens to
      */
-    function sync(address stakeCredit, address account) external onlyDelegationOrValidatorManager {
+    function sync(
+        address stakeCredit,
+        address account
+    ) external onlyDelegationOrValidatorManager {
         _sync(stakeCredit, account);
     }
 
@@ -50,7 +53,10 @@ contract GovToken is
      * @param stakeCredits the stakeCredit Token contracts
      * @param account the account to sync gov tokens to
      */
-    function syncBatch(address[] calldata stakeCredits, address account) external onlyDelegationOrValidatorManager {
+    function syncBatch(
+        address[] calldata stakeCredits,
+        address account
+    ) external onlyDelegationOrValidatorManager {
         uint256 _length = stakeCredits.length;
         for (uint256 i = 0; i < _length; ++i) {
             _sync(stakeCredits[i], account);
@@ -62,7 +68,10 @@ contract GovToken is
      * @param delegator the delegator
      * @param delegatee the delegatee
      */
-    function delegateVote(address delegator, address delegatee) external onlyDelegationOrValidatorManager {
+    function delegateVote(
+        address delegator,
+        address delegatee
+    ) external onlyDelegationOrValidatorManager {
         _delegate(delegator, delegatee);
     }
 
@@ -82,12 +91,18 @@ contract GovToken is
     /**
      * @dev Burn tokens from account (disabled - will always revert)
      */
-    function burnFrom(address, uint256) public pure override(ERC20BurnableUpgradeable, IGovToken) {
+    function burnFrom(
+        address,
+        uint256
+    ) public pure override(ERC20BurnableUpgradeable, IGovToken) {
         revert BurnNotAllowed();
     }
 
     /*----------------- internal functions -----------------*/
-    function _sync(address stakeCredit, address account) internal {
+    function _sync(
+        address stakeCredit,
+        address account
+    ) internal {
         uint256 latestGAmount = IStakeCredit(stakeCredit).getTotalPooledG();
         uint256 _mintedAmount = mintedMap[stakeCredit][account];
 

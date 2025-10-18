@@ -43,9 +43,8 @@ contract Block is System, IBlock, Initializable {
         ITimestamp(TIMESTAMP_ADDR).updateGlobalTime(validatorAddress, uint64(timestampMicros));
 
         // Update validator performance statistics
-        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR).updatePerformanceStatistics(
-            proposerIndex, failedProposerIndices
-        );
+        IValidatorPerformanceTracker(VALIDATOR_PERFORMANCE_TRACKER_ADDR)
+            .updatePerformanceStatistics(proposerIndex, failedProposerIndices);
 
         // Check if epoch transition is needed
         if (IEpochManager(EPOCH_MANAGER_ADDR).canTriggerEpochTransition()) {

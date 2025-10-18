@@ -14,7 +14,6 @@ interface IValidatorManager is IReconfigurableModule {
         ACTIVE, // 1
         PENDING_INACTIVE, // 2
         INACTIVE // 3
-
     }
 
     // Commission structure
@@ -194,35 +193,50 @@ interface IValidatorManager is IReconfigurableModule {
     /**
      * @dev Update consensus public key
      */
-    function updateConsensusKey(address validator, bytes calldata newConsensusKey) external;
+    function updateConsensusKey(
+        address validator,
+        bytes calldata newConsensusKey
+    ) external;
 
     /**
      * @dev Update commission rate
      * @param validator Validator address
      * @param newCommissionRate New commission rate
      */
-    function updateCommissionRate(address validator, uint64 newCommissionRate) external;
+    function updateCommissionRate(
+        address validator,
+        uint64 newCommissionRate
+    ) external;
 
     /**
      * @dev Update validator network addresses
      * @param validator Validator address
      * @param newAddresses New validator network addresses (BCS encoded)
      */
-    function updateValidatorNetworkAddresses(address validator, bytes calldata newAddresses) external;
+    function updateValidatorNetworkAddresses(
+        address validator,
+        bytes calldata newAddresses
+    ) external;
 
     /**
      * @dev Update fullnode network addresses
      * @param validator Validator address
      * @param newAddresses New fullnode network addresses (BCS encoded)
      */
-    function updateFullnodeNetworkAddresses(address validator, bytes calldata newAddresses) external;
+    function updateFullnodeNetworkAddresses(
+        address validator,
+        bytes calldata newAddresses
+    ) external;
 
     // ======== Role Query Functions ========
 
     /**
      * @dev Check if account is validator itself
      */
-    function isValidator(address validator, address account) external view returns (bool);
+    function isValidator(
+        address validator,
+        address account
+    ) external view returns (bool);
 
     /**
      * @dev Check if account is validator operator
@@ -230,7 +244,10 @@ interface IValidatorManager is IReconfigurableModule {
      * @param account The account to check
      * @return Whether the account is validator operator
      */
-    function isOperator(address validator, address account) external view returns (bool);
+    function isOperator(
+        address validator,
+        address account
+    ) external view returns (bool);
 
     /**
      * @dev Check if account has operator permission for validator
@@ -238,7 +255,10 @@ interface IValidatorManager is IReconfigurableModule {
      * @param account The account to check
      * @return Whether the account has operator permission
      */
-    function hasOperatorPermission(address validator, address account) external view returns (bool);
+    function hasOperatorPermission(
+        address validator,
+        address account
+    ) external view returns (bool);
 
     /**
      * @dev Get validator information
@@ -345,7 +365,10 @@ interface IValidatorManager is IReconfigurableModule {
      * @param validator Validator address
      * @param newOperator New operator address
      */
-    function updateOperator(address validator, address newOperator) external;
+    function updateOperator(
+        address validator,
+        address newOperator
+    ) external;
 
     /**
      * @dev Get validator's operator address

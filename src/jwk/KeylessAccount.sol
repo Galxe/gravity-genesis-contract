@@ -73,7 +73,10 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     /**
      * @dev 统一参数更新函数 - 立即生效模式
      */
-    function updateParam(string calldata key, bytes calldata value) external override onlyGov {
+    function updateParam(
+        string calldata key,
+        bytes calldata value
+    ) external override onlyGov {
         if (Strings.equal(key, "maxSignaturesPerTxn")) {
             uint16 newValue = abi.decode(value, (uint16));
             uint16 oldValue = configuration.max_signatures_per_txn;
@@ -197,8 +200,9 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     ) external override onlyEOA returns (address) {
         // 使用Verifier合约验证ZK证明
         try verifier.verifyProof(proof, publicInputs) {
-            // 证明有效，继续处理
-        } catch Error(string memory) {
+        // 证明有效，继续处理
+        }
+        catch Error(string memory) {
             // 证明无效
             revert InvalidProof();
         }
@@ -213,11 +217,7 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
 
         // 创建账户信息
         accounts[accountAddress] = KeylessAccountInfo({
-            account: accountAddress,
-            nonce: 0,
-            jwkHash: jwkHash,
-            issuer: issuer,
-            creationTimestamp: block.timestamp
+            account: accountAddress, nonce: 0, jwkHash: jwkHash, issuer: issuer, creationTimestamp: block.timestamp
         });
 
         emit KeylessAccountCreated(accountAddress, issuer, jwkHash);
@@ -236,8 +236,9 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     ) external override onlyEOA returns (address) {
         // 使用Verifier合约验证压缩ZK证明
         try verifier.verifyCompressedProof(compressedProof, publicInputs) {
-            // 证明有效，继续处理
-        } catch Error(string memory) {
+        // 证明有效，继续处理
+        }
+        catch Error(string memory) {
             // 证明无效
             revert InvalidProof();
         }
@@ -252,11 +253,7 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
 
         // 创建账户信息
         accounts[accountAddress] = KeylessAccountInfo({
-            account: accountAddress,
-            nonce: 0,
-            jwkHash: jwkHash,
-            issuer: issuer,
-            creationTimestamp: block.timestamp
+            account: accountAddress, nonce: 0, jwkHash: jwkHash, issuer: issuer, creationTimestamp: block.timestamp
         });
 
         emit KeylessAccountCreated(accountAddress, issuer, jwkHash);
@@ -281,8 +278,9 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
 
         // 使用Verifier合约验证ZK证明
         try verifier.verifyProof(proof, publicInputs) {
-            // 证明有效，继续处理
-        } catch Error(string memory) {
+        // 证明有效，继续处理
+        }
+        catch Error(string memory) {
             // 证明无效
             revert InvalidProof();
         }
@@ -310,8 +308,9 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
 
         // 使用Verifier合约验证ZK证明
         try verifier.verifyCompressedProof(compressedProof, publicInputs) {
-            // 证明有效，继续处理
-        } catch Error(string memory) {
+        // 证明有效，继续处理
+        }
+        catch Error(string memory) {
             // 证明无效
             revert InvalidProof();
         }
@@ -343,7 +342,10 @@ contract KeylessAccount is System, Protectable, IKeylessAccount, Initializable {
     /**
      * @dev 从JWK哈希和发行者导出账户地址
      */
-    function _deriveAccountAddress(bytes32 jwkHash, string memory issuer) internal pure returns (address) {
+    function _deriveAccountAddress(
+        bytes32 jwkHash,
+        string memory issuer
+    ) internal pure returns (address) {
         return address(uint160(uint256(keccak256(abi.encodePacked(jwkHash, issuer)))));
     }
 }

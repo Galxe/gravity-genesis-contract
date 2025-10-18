@@ -53,7 +53,10 @@ interface IValidatorPerformanceTracker {
      * @param proposerIndex Current proposer index (use type(uint256).max for None)
      * @param failedProposerIndices Array of failed proposer indices
      */
-    function updatePerformanceStatistics(uint64 proposerIndex, uint64[] calldata failedProposerIndices) external;
+    function updatePerformanceStatistics(
+        uint64 proposerIndex,
+        uint64[] calldata failedProposerIndices
+    ) external;
 
     /**
      * @dev Handle new epoch transition, reset performance statistics

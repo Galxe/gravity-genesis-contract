@@ -30,7 +30,10 @@ interface ITimestamp {
      * @param proposer The proposer's address
      * @param timestamp The new timestamp in microseconds
      */
-    function updateGlobalTime(address proposer, uint64 timestamp) external;
+    function updateGlobalTime(
+        address proposer,
+        uint64 timestamp
+    ) external;
 
     /**
      * @dev Gets the current time in microseconds - callable by anyone

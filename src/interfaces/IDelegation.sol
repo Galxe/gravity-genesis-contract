@@ -49,7 +49,10 @@ interface IDelegation {
      * @param validator The validator address to undelegate from
      * @param shares The amount of shares to undelegate
      */
-    function undelegate(address validator, uint256 shares) external;
+    function undelegate(
+        address validator,
+        uint256 shares
+    ) external;
 
     /**
      * @dev Claim matured unlocked stake from a validator (Pull model)
@@ -76,7 +79,12 @@ interface IDelegation {
      * @param shares The amount of shares to redelegate
      * @param delegateVotePower Whether to also delegate voting power
      */
-    function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower) external;
+    function redelegate(
+        address srcValidator,
+        address dstValidator,
+        uint256 shares,
+        bool delegateVotePower
+    ) external;
 
     /**
      * @dev Delegate voting power to another address

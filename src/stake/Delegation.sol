@@ -127,7 +127,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param amount Amount to calculate fee on
      * @return Net amount after fee deduction
      */
-    function _calculateAndChargeFee(address dstStakeCredit, uint256 amount) internal returns (uint256) {
+    function _calculateAndChargeFee(
+        address dstStakeCredit,
+        uint256 amount
+    ) internal returns (uint256) {
         uint256 feeRate = IStakeConfig(STAKE_CONFIG_ADDR).redelegateFeeRate();
         uint256 feeCharge = (amount * feeRate) / IStakeConfig(STAKE_CONFIG_ADDR).PERCENTAGE_BASE();
 
@@ -199,7 +202,10 @@ contract Delegation is System, ReentrancyGuard, Protectable, IDelegation {
      * @param dstValidator Destination validator address
      * @param delegator Delegator address
      */
-    function _validateDstValidator(address dstValidator, address delegator) internal view {
+    function _validateDstValidator(
+        address dstValidator,
+        address delegator
+    ) internal view {
         IValidatorManager.ValidatorStatus dstStatus =
             IValidatorManager(VALIDATOR_MANAGER_ADDR).getValidatorStatus(dstValidator);
         if (

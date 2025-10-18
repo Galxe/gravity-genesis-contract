@@ -92,7 +92,10 @@ contract Groth16Verifier is IGroth16Verifier {
     /// @param a the base
     /// @param e the exponent
     /// @return x the result
-    function exp(uint256 a, uint256 e) internal view returns (uint256 x) {
+    function exp(
+        uint256 a,
+        uint256 e
+    ) internal view returns (uint256 x) {
         bool success;
         assembly ("memory-safe") {
             let f := mload(0x40)
@@ -171,7 +174,11 @@ contract Groth16Verifier is IGroth16Verifier {
     /// @param hint A hint which of two possible signs to pick in the equation.
     /// @return x0 The real part of the square root.
     /// @return x1 The imaginary part of the square root.
-    function sqrt_Fp2(uint256 a0, uint256 a1, bool hint) internal view returns (uint256 x0, uint256 x1) {
+    function sqrt_Fp2(
+        uint256 a0,
+        uint256 a1,
+        bool hint
+    ) internal view returns (uint256 x0, uint256 x1) {
         // If this square root reverts there is no solution in Fp2.
         uint256 d = sqrt_Fp(addmod(mulmod(a0, a0, P), mulmod(a1, a1, P), P));
         if (hint) {
@@ -195,7 +202,10 @@ contract Groth16Verifier is IGroth16Verifier {
     /// @param x The X coordinate in Fp.
     /// @param y The Y coordinate in Fp.
     /// @return c The compresed point (x with one signal bit).
-    function compress_g1(uint256 x, uint256 y) internal view returns (uint256 c) {
+    function compress_g1(
+        uint256 x,
+        uint256 y
+    ) internal view returns (uint256 c) {
         if (x >= P || y >= P) {
             // G1 point not in field.
             revert ProofInvalid();
@@ -435,7 +445,10 @@ contract Groth16Verifier is IGroth16Verifier {
     /// matching the output of compressProof.
     /// @param input the public input field elements in the scalar field Fr.
     /// Elements must be reduced.
-    function verifyCompressedProof(uint256[4] calldata compressedProof, uint256[3] calldata input) public view {
+    function verifyCompressedProof(
+        uint256[4] calldata compressedProof,
+        uint256[3] calldata input
+    ) public view {
         (uint256 Ax, uint256 Ay) = decompress_g1(compressedProof[0]);
         (uint256 Bx0, uint256 Bx1, uint256 By0, uint256 By1) = decompress_g2(compressedProof[2], compressedProof[1]);
         (uint256 Cx, uint256 Cy) = decompress_g1(compressedProof[3]);
@@ -496,7 +509,10 @@ contract Groth16Verifier is IGroth16Verifier {
     /// of compressProof.
     /// @param input the public input field elements in the scalar field Fr.
     /// Elements must be reduced.
-    function verifyProof(uint256[8] calldata proof, uint256[3] calldata input) public view {
+    function verifyProof(
+        uint256[8] calldata proof,
+        uint256[3] calldata input
+    ) public view {
         (uint256 x, uint256 y) = publicInputMSM(input);
 
         // Note: The precompile expects the F2 coefficients in big-endian order.

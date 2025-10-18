@@ -23,7 +23,10 @@ contract Timestamp is System, ITimestamp {
      * @param proposer Proposer address
      * @param timestamp New timestamp in microseconds
      */
-    function updateGlobalTime(address proposer, uint64 timestamp) public onlyBlock {
+    function updateGlobalTime(
+        address proposer,
+        uint64 timestamp
+    ) public onlyBlock {
         // Get current time stored in state
         uint64 currentTime = microseconds;
 
