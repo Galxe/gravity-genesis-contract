@@ -109,7 +109,8 @@ interface IJWKManager is IParamSubscriber {
         uint256 blockNumber,
         bool success,
         string errorMessage,
-        string issuer
+        string issuer,
+        uint256 onchainBlockNumber
     );
 
     // ======== Function Declarations ========

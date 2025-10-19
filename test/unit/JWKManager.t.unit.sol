@@ -306,7 +306,8 @@ contract JWKManagerTest is Test, TestConstants {
             block.number,
             false,
             "InsufficientContractBalance",
-            TEST_ISSUER
+            TEST_ISSUER,
+            block.number
         );
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
     }
@@ -330,7 +331,7 @@ contract JWKManagerTest is Test, TestConstants {
         vm.prank(SYSTEM_CALLER);
         vm.expectEmit(true, true, false, true);
         emit IJWKManager.CrossChainDepositProcessed(
-            TEST_USER, TEST_TARGET_ADDRESS, TEST_DEPOSIT_AMOUNT, block.number, true, "", TEST_ISSUER
+            TEST_USER, TEST_TARGET_ADDRESS, TEST_DEPOSIT_AMOUNT, block.number, true, "", TEST_ISSUER, block.number
         );
         jwkManager.upsertObservedJWKs(providerJWKsArray, crossChainParams);
     }

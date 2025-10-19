@@ -668,12 +668,16 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     function _updateOnchainBlockNumber(
         string memory issuer,
         uint256 blockNumber
-    ) internal {
+    ) internal returns (bool) {
         uint256 index = providerIndex[issuer];
         if (index == 0) {
             revert IssuerNotFound();
         }
+        if (supportedProviders[index - 1].onchain_block_number > blockNumber) {
+            return false;
+        }
         supportedProviders[index - 1].onchain_block_number = blockNumber;
+        return true;
     }
 
     function _handleCrossChainEvent(
@@ -691,21 +695,31 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
     function _handleCrossChainDepositEvent(
         CrossChainParams calldata crossChainParam
     ) internal {
-        _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
-
         address targetAddress = crossChainParam.targetAddress;
         uint256 amount = crossChainParam.amount;
         bool success = false;
         string memory errorMessage = "";
 
-        // Check if contract has sufficient balance
-        if (address(this).balance < amount) {
-            errorMessage = "InsufficientContractBalance";
+        // First, try to update onchain block number
+        bool blockNumberUpdated = _updateOnchainBlockNumber(crossChainParam.issuer, crossChainParam.blockNumber);
+        if (!blockNumberUpdated) {
+            success = false;
+            errorMessage = "BlockNumberUpdateFailed";
         } else {
-            // Transfer ETH to target address
-            (success,) = targetAddress.call{ value: amount }("");
-            if (!success) {
-                errorMessage = "TransferFailed";
+            // Check if contract has sufficient balance
+            if (address(this).balance < amount) {
+                success = false;
+                errorMessage = "InsufficientContractBalance";
+            } else {
+                // Transfer ETH to target address
+                (bool transferSuccess,) = targetAddress.call{ value: amount }("");
+                if (!transferSuccess) {
+                    success = false;
+                    errorMessage = "TransferFailed";
+                } else {
+                    success = true;
+                    errorMessage = "";
+                }
             }
         }
 
@@ -717,7 +731,8 @@ contract JWKManager is System, Protectable, IParamSubscriber, IJWKManager, Initi
             crossChainParam.blockNumber,
             success,
             errorMessage,
-            crossChainParam.issuer
+            crossChainParam.issuer,
+            block.number
         );
     }
 }
