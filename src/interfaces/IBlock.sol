@@ -41,4 +41,23 @@ interface IBlock {
         uint64[] calldata failedProposerIndices,
         uint256 timestampMicros
     ) external;
+
+    /**
+     * @dev Extended block prologue function for DKG (Distributed Key Generation) operations
+     * @notice This function is called at the beginning of each block to execute DKG-related system logic
+     * @param proposer Current block proposer address, SYSTEM_CALLER indicates VM reserved address
+     * @param failedProposerIndices List of failed proposer indices
+     * @param timestampMicros Current block timestamp in microseconds
+     * @dev This function handles:
+     *      - DKG session management and state transitions
+     *      - Validator set updates for DKG operations
+     *      - Randomness configuration updates
+     *      - DKG session completion and cleanup
+     *      - Integration with epoch transitions for DKG
+     */
+    function blockPrologueExt(
+        address proposer,
+        uint64[] calldata failedProposerIndices,
+        uint256 timestampMicros
+    ) external;
 }

@@ -13,6 +13,9 @@ import "@src/interfaces/IJWKManager.sol";
 import "@src/interfaces/IKeylessAccount.sol";
 import "@src/governance/GravityGovernor.sol";
 import "@src/governance/Timelock.sol";
+import "@src/interfaces/IReconfigurationWithDKG.sol";
+import "@src/interfaces/IDKG.sol";
+import "@src/interfaces/IRandomnessConfig.sol";
 
 /**
  * @title Genesis
@@ -71,6 +74,29 @@ contract Genesis is System {
         IEpochManager(EPOCH_MANAGER_ADDR).triggerEpochTransition();
 
         ITimestamp(TIMESTAMP_ADDR).initialize();
+
+        // Initialize ReconfigurationWithDKG contract
+        IReconfigurationWithDKG(RECONFIGURATION_WITH_DKG_ADDR).initialize();
+
+        // Initialize DKG contract
+        IDKG(DKG_ADDR).initialize();
+
+
+
+        // Initialize RandomnessConfig contract with default V1 config
+        IRandomnessConfig.RandomnessConfigData memory defaultRandomnessConfig = IRandomnessConfig.RandomnessConfigData({
+            variant: IRandomnessConfig.ConfigVariant.V2,
+            configV1: IRandomnessConfig.ConfigV1({
+                secrecyThreshold: IDKG.FixedPoint64({value: 0}),
+                reconstructionThreshold: IDKG.FixedPoint64({value: 0})
+            }),
+            configV2: IRandomnessConfig.ConfigV2({
+                secrecyThreshold: IDKG.FixedPoint64({value: 9223372036854775808}),
+                reconstructionThreshold: IDKG.FixedPoint64({value: 12297829382473033728}),
+                fastPathSecrecyThreshold: IDKG.FixedPoint64({value: 12297829382473033728})
+            })
+        });
+        IRandomnessConfig(RANDOMNESS_CONFIG_ADDR).initialize(defaultRandomnessConfig);
 
         emit GenesisCompleted(block.timestamp, consensusPublicKeys.length);
     }

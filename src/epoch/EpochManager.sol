@@ -27,7 +27,8 @@ contract EpochManager is System, Protectable, IParamSubscriber, IEpochManager, I
     uint256 public lastEpochTransitionTime;
 
     modifier onlyAuthorizedCallers() {
-        if (msg.sender != SYSTEM_CALLER && msg.sender != BLOCK_ADDR && msg.sender != GENESIS_ADDR) {
+        if (msg.sender != SYSTEM_CALLER && msg.sender != BLOCK_ADDR && msg.sender != GENESIS_ADDR
+            && msg.sender != RECONFIGURATION_WITH_DKG_ADDR) {
             revert NotAuthorized(msg.sender);
         }
         _;

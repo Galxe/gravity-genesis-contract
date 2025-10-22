@@ -172,11 +172,23 @@ contract ValidatorManagerMock {
         isCurrentEpochValidatorMap[validator] = false;
     }
 
-    function getValidatorSet() external pure returns (IValidatorManager.ValidatorSet memory) {
+    function getValidatorSet() external view returns (IValidatorManager.ValidatorSet memory) {
+        // Build active validators array
+        IValidatorManager.ValidatorInfo[] memory activeValidatorInfos = new IValidatorManager.ValidatorInfo[](_activeValidators.length);
+        for (uint256 i = 0; i < _activeValidators.length; i++) {
+            activeValidatorInfos[i] = _validatorInfos[_activeValidators[i]];
+        }
+        
+        // Build pending active validators array
+        IValidatorManager.ValidatorInfo[] memory pendingActiveInfos = new IValidatorManager.ValidatorInfo[](_pendingActiveValidators.length);
+        for (uint256 i = 0; i < _pendingActiveValidators.length; i++) {
+            pendingActiveInfos[i] = _validatorInfos[_pendingActiveValidators[i]];
+        }
+        
         return IValidatorManager.ValidatorSet({
-            activeValidators: new IValidatorManager.ValidatorInfo[](0),
-            pendingInactive: new IValidatorManager.ValidatorInfo[](0),
-            pendingActive: new IValidatorManager.ValidatorInfo[](0),
+            activeValidators: activeValidatorInfos,
+            pendingInactive: _pendingInactiveValidators,
+            pendingActive: pendingActiveInfos,
             totalVotingPower: 0,
             totalJoiningPower: 0
         });
@@ -185,4 +197,47 @@ contract ValidatorManagerMock {
     function onNewEpoch() external {
         // Mock implementation - do nothing
     }
+
+    // Additional mock state for new functions
+    address[] private _activeValidators;
+    address[] private _pendingActiveValidators;
+    IValidatorManager.ValidatorInfo[] private _pendingInactiveValidators;
+    mapping(address => IValidatorManager.ValidatorInfo) private _validatorInfos;
+
+    function setActiveValidators(address[] memory validators) external {
+        _activeValidators = validators;
+    }
+
+    function setPendingActiveValidators(address[] memory validators) external {
+        _pendingActiveValidators = validators;
+    }
+
+    function setPendingInactiveValidators(IValidatorManager.ValidatorInfo[] memory validators) external {
+        delete _pendingInactiveValidators;
+        for (uint256 i = 0; i < validators.length; i++) {
+            _pendingInactiveValidators.push(validators[i]);
+        }
+    }
+    
+    // For backward compatibility - map to existing function
+    function getPendingValidators() external view returns (address[] memory) {
+        return _pendingActiveValidators;
+    }
+
+    function setValidatorInfo(address validator, IValidatorManager.ValidatorInfo memory info) external {
+        _validatorInfos[validator] = info;
+    }
+
+    function getActiveValidators() external view returns (address[] memory) {
+        return _activeValidators;
+    }
+
+    function getPendingActiveValidators() external view returns (address[] memory) {
+        return _pendingActiveValidators;
+    }
+
+    function getValidatorInfo(address validator) external view returns (IValidatorManager.ValidatorInfo memory) {
+        return _validatorInfos[validator];
+    }
+
 }
